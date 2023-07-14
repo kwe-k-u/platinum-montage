@@ -1,2 +1,4 @@
 *.xlsx
+*.log
 .idea/
+__pycache__/

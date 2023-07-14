@@ -37,26 +37,27 @@ def find_area(cordinates):
 
 
 def show_points(detection):
-    image = np.zeros((500,500,3),dtype=np.uint8)
     print("preparing to show points")
     for i in range(len(detection)):
         # print(i,"detections")
         cords = []
         detect = detection[i]
+        image = np.zeros((600,600,3),dtype=np.uint8)
+        # image = np.zeros((detect.img_width,detect.img_height,3),dtype=np.uint8)
         cords = detect.left_eye_detection
         # print(cords)
         # input("waiting")
         cords.extend(detect.right_eye_detection)
-        cords.extend(detect.lip_detection)
-        cords.extend(detect.face_detection)
-        cords.extend(detect.nose_detection)
-        col = (randint(1,100),randint(1,100),50)
+        # cords.extend(detect.lip_detection)
+        # cords.extend(detect.face_detection)
+        # cords.extend(detect.nose_detection)
+        col = (256,256,256)#(randint(1,100),randint(1,100),50)
         for point in cords:
 	        # point times 10 for enlargement
-            cv2.circle(image, (point[0]*2,point[1]*2), 4 , col, -1)
+            cv2.circle(image, (point[0]%500,point[1]%500), 4 , col, -1)
 
-    cv2.imshow("all points",image)
-    cv2.waitKey(0)
+        cv2.imshow("detect.file",image)
+        cv2.waitKey(0)
 
 
 
