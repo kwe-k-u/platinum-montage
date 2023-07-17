@@ -17,15 +17,19 @@ CENTER_CORDINATES = 4# - Center Cordinates of face?
 LEFT_EYE = 5# - left eye position
 RIGHT_EYE = 6# -right eye position
 
+def is_image(path):
+    image_extensions = ['.jpg', '.jpeg', '.png']
+    _, extension = os.path.splitext(path)
+    return extension.lower() in image_extensions
+
+
 
 def find_images(directory):
-    image_extensions = ['.jpg', '.jpeg', '.png']
     image_files = []
 
     for root, dirs, files in os.walk(directory):
         for file in files:
-            _, extension = os.path.splitext(file)
-            if extension.lower() in image_extensions:
+            if is_image(file):
                 image_files.append(os.path.join(root, file))
 
 
