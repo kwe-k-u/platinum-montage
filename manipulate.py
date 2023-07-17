@@ -9,7 +9,8 @@ import math
 #         # rotate()
 #         pass
 
-def rotate(image, angle):
+def rotate(path, angle):
+    image = cv2.imread(path)
     height, width = image.shape[:2]
     image_center = (width / 2, height / 2)
 
@@ -31,7 +32,7 @@ def rotate(image, angle):
     cv2.waitKey(0)
 
 
-def crop(detection):
+def crop(detection, new_img):
     image = detection.image
 # y=0
 # x=0
