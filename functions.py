@@ -9,13 +9,6 @@ from time import time
 import cv2
 
 cwd = os.getcwd()
-# //================INDEXES FOR THE POSITION OF STATISTIC DATA
-EYE_ANGLE = 1# - Angle of eyes
-LIP_ANGLE = 2# - Angle of lips
-FACE_TO_IMAGE = 3# - Ratio of face to image
-CENTER_CORDINATES = 4# - Center Cordinates of face?
-LEFT_EYE = 5# - left eye position
-RIGHT_EYE = 6# -right eye position
 
 def is_image(path):
     image_extensions = ['.jpg', '.jpeg', '.png']
@@ -81,7 +74,7 @@ def write_to_log(file_name):
 
 
 def generate_report(file_names):
-    print("file_names "+ str(len(file_names)))
+    # print("file_names "+ str(len(file_names)))
 
     module = detector() #feature detector
     data = []

@@ -5,10 +5,10 @@ from tkinter import filedialog
 import cv2
 from PIL import Image, ImageTk
 
-current = os.path.dirname(os.path.realpath(__file__))
-parent = os.path.dirname(current)
+parent = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(parent)
 from functions import *
+from detection_class import detection
 
 class MontageMakerApp:
 	def __init__(self):
@@ -53,10 +53,18 @@ class MontageMakerApp:
 			self.folder_entry.delete(0, tk.END)
 			self.folder_entry.insert(tk.END, folder_path)
 
-	def detection_window(self):
-		def change_current_image(l,img):
-			l.image = img
-			pass
+
+	# Window 3
+	def detection_window(self, index = 0):
+		# def change_current_image(image_path):
+		# 	# l.image = img
+		# 	# img = cv2.imread(image_path)
+		# 	# img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+		# 	# img_tk = ImageTk.PhotoImage(img)
+		# 	# image_label = tk.Label(middle_frame, image=img_tk)
+		# 	# # image_label.image = img_tk
+		# 	# image_label.pack()
+		# 	pass
 
 		def detect_face():
 			# Add your face detection logic here
@@ -96,29 +104,39 @@ class MontageMakerApp:
 		third_frame.pack(pady=10, side="left")
 
 		# Retrieve the folder path from the previous window
-		image_files = []
-		for filename in os.listdir(self.folder_path):
-			if is_image(filename):
-				image_files.append(os.path.join(self.folder_path, filename))
+		image_files = find_images(self.folder_path)
 
 		# Create a grid of images in the first frame
 		row = 0
 		col = 0
 		for i in range(len(image_files)):
 			image_file = image_files[i]
+
+			#PERFORMING DETECTIONS
+			# detector = detector()
+			detection_row = generate_report([image_file])
+			detect = detection(detection_row[0])
+
+			img = detect.get_marked_img()
+			# detector.gen_mesh(image_file)
 			# Read the image using cv2
-			img = cv2.imread(image_file)
+			# img = cv2.imread(image_file)
 			# Convert the image from BGR to RGB
+
 			img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 			# Resize the image to a smaller size (optional)
 			img = cv2.resize(img, (100, 100))
+
 
 			# Convert the image to Tkinter-compatible format
 			img = Image.fromarray(img)
 			img_tk = ImageTk.PhotoImage(img)
 
+
 			# Create a label to display the image
-			label = tk.Button(first_frame,image=img_tk, command=change_current_image)
+			label = tk.Button(first_frame,image=img_tk,
+		      command=lambda idx=i : self.detection_window(idx)
+			  )
 			label.image = img_tk
 			label.grid(row=row, column=col, padx=10, pady=10)
 
@@ -130,8 +148,10 @@ class MontageMakerApp:
 
 
 		# Display the selected image in the middle frame
-		selected_image_path = image_files[0]  # Assuming the first image is selected
-		img = cv2.imread(selected_image_path)
+		detection_row = generate_report([image_files[index]])
+		detect = detection(detection_row[0])
+
+		img = detect.get_marked_img()
 		img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 		img = Image.fromarray(img)
 		img_tk = ImageTk.PhotoImage(img)
@@ -167,6 +187,7 @@ class MontageMakerApp:
 
 
 
+	# Window 2
 	def select_image_window(self):
 		folder_path = self.folder_entry.get()
 		self.root.destroy()  # Close the current window

@@ -4,6 +4,19 @@ import math
 class detection:
 
 
+	def get_marked_img(self):
+		marked = self.image.copy()
+		# show face
+		for cord in self.face_detection:
+			cv2.circle(marked, cord,1,(100,100,1),1)
+		# show eyes
+		for cord in self.left_eye_detection + self.right_eye_detection:
+			cv2.circle(marked, cord,1,(100,100,1),1)
+		# show lips
+		for cord in self.lip_detection:
+			cv2.circle(marked, cord,1,(100,100,1),1)
+		return marked
+
 	def __init__(self, row) -> None:
 		self.left_eye_detection = []
 		self.right_eye_detection = []
@@ -11,13 +24,16 @@ class detection:
 		self.face_detection = []
 		self.nose_detection = []
 
-		self.file = row[0].value
+		self.file = row[0].value if type(row[0]) != str else row[0]
 		self.image = cv2.imread(self.file)
-		self.img_height = row[1].value
-		self.img_width = row[2].value
+		self.img_height = row[1].value if type(row[1]) != int else row[1]
+		self.img_width = row[2].value if type(row[2]) != int else row[2]
 
 		for e in range(0,len(row[3:]),2):
-			value = (row[3:][e].value,row[3:][e+1].value)
+			if type(row[3:][e]) == int:
+				value = (row[3:][e],row[3:][e+1])
+			else:
+				value = (row[3:][e].value,row[3:][e+1].value)
 
 			if (len(self.left_eye_detection) < 15): #left eye cordinates
 				self.left_eye_detection.append(value)
@@ -38,7 +54,7 @@ class detection:
 
 
 	def __eq__(self, obj: object) -> bool:
-		return self.left_eye_detection == obj.left_eye_detection and self.right_eye_detection == obj.right_eye_detection and self.lip_detection == __value.lip_detection
+		return self.left_eye_detection == obj.left_eye_detection and self.right_eye_detection == obj.right_eye_detection and self.lip_detection == obj.lip_detection
 
 
 	# Checks if the eyes, nose and lips are within the cordinates of the face
@@ -117,10 +133,10 @@ class detection:
 
 		# Checks major points if their expected positions relative
 		# to other points for the feature are true
-		def is_nose_valid():
-			return ( (nose_center[0] > f_138[0] and nose_center[0] < f_435[0]) #horizontal check
-				and (nose_center[1] > f_151[1] and nose_center[1] < f_175[1]) #vertical check
-			)
+		# def is_nose_valid():
+		# 	return ( (nose_center[0] > f_138[0] and nose_center[0] < f_435[0]) #horizontal check
+		# 		and (nose_center[1] > f_151[1] and nose_center[1] < f_175[1]) #vertical check
+		# 	)
 
 
 
