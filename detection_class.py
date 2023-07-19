@@ -4,6 +4,7 @@ import math
 class detection:
 
 
+
 	def get_marked_img(self):
 		marked = self.image.copy()
 		# show face

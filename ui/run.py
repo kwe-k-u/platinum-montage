@@ -8,6 +8,8 @@ from PIL import Image, ImageTk
 parent = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(parent)
 from functions import *
+from stats_gen import *
+from manipulate import *
 from detection_class import detection
 
 class MontageMakerApp:
@@ -15,6 +17,8 @@ class MontageMakerApp:
 		self.root = tk.Tk()
 		self.root.title("Montage Maker")
 		self.folder_path = ""
+		self.detection_list = []
+		self.show_marks = True
 
 		# Montage Maker label
 		self.montage_label = tk.Label(self.root, text="Montage maker", font=("Helvetica", 24))
@@ -66,25 +70,28 @@ class MontageMakerApp:
 		# 	# image_label.pack()
 		# 	pass
 
-		def detect_face():
-			# Add your face detection logic here
+		def straigthen():
+			selected = self.detection_list[index]
+			left, right, angle = find_eye_angle(selected.left_eye_detection,selected.right_eye_detection)
+			rotated = rotate(selected.file,angle)
+			self.show_marks = False
+
+			self.detection_list[index].image = rotated
+
+			self.detection_window(index)
+
+		def toggle_marks():
+			self.show_marks = not self.show_marks
+			self.detection_window(index)
+
+		def crop_16_9():
 			pass
 
-		def detect_left_eye():
-			# Add your left eye detection logic here
-			pass
-
-		def detect_right_eye():
-			# Add your right eye detection logic here
-			pass
-
-		def detect_lips():
-			# Add your lips detection logic here
-			pass
-
-		def detect_nose():
-			# Add your nose detection logic here
-			pass
+		def reset_image():
+			report = generate_report([self.detection_list[index].file])
+			self.detection_list[index] = detection(report[0])
+			self.show_marks = True
+			self.detection_window(index)
 
 
 		self.root.destroy()  # Close the second window
@@ -104,20 +111,22 @@ class MontageMakerApp:
 		third_frame.pack(pady=10, side="left")
 
 		# Retrieve the folder path from the previous window
-		image_files = find_images(self.folder_path)
+		# self.detection_list = []
+		if(len(self.detection_list) == 0):
+			for f in find_images(self.folder_path):
+				detection_row = generate_report([f])
+				detect = detection(detection_row[0])
+				self.detection_list.append(detect)
 
 		# Create a grid of images in the first frame
 		row = 0
 		col = 0
-		for i in range(len(image_files)):
-			image_file = image_files[i]
+		for i in range(len(self.detection_list)):
 
 			#PERFORMING DETECTIONS
 			# detector = detector()
-			detection_row = generate_report([image_file])
-			detect = detection(detection_row[0])
 
-			img = detect.get_marked_img()
+			img =  self.detection_list[i].get_marked_img()
 			# detector.gen_mesh(image_file)
 			# Read the image using cv2
 			# img = cv2.imread(image_file)
@@ -148,10 +157,13 @@ class MontageMakerApp:
 
 
 		# Display the selected image in the middle frame
-		detection_row = generate_report([image_files[index]])
-		detect = detection(detection_row[0])
+		detect = self.detection_list[index]
 
-		img = detect.get_marked_img()
+		if(self.show_marks):
+			img = detect.get_marked_img()
+		else:
+			img = detect.image
+
 		img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 		img = Image.fromarray(img)
 		img_tk = ImageTk.PhotoImage(img)
@@ -160,20 +172,20 @@ class MontageMakerApp:
 		image_label.pack()
 
 		# Detection buttons in the third frame
-		face_button = tk.Button(third_frame, text="Face", command=detect_face)
+		face_button = tk.Button(third_frame, text="Straigthen face", command=straigthen)
 		face_button.pack(pady=5)
 
-		left_eye_button = tk.Button(third_frame, text="Left Eye", command=detect_left_eye)
+		left_eye_button = tk.Button(third_frame, text="Crop (16:9)", command=crop_16_9)
 		left_eye_button.pack(pady=5)
 
-		right_eye_button = tk.Button(third_frame, text="Right Eye", command=detect_right_eye)
-		right_eye_button.pack(pady=5)
 
-		lips_button = tk.Button(third_frame, text="Lips", command=detect_lips)
-		lips_button.pack(pady=5)
+		reset_button = tk.Button(third_frame, text="Reset", command=reset_image)
+		reset_button.pack(pady=5)
 
-		nose_button = tk.Button(third_frame, text="Nose", command=detect_nose)
-		nose_button.pack(pady=5)
+
+		show_mark_button = tk.Button(third_frame, text="Toggle marking", command=lambda: toggle_marks() )
+		show_mark_button.pack(pady=5)
+
 
 		# Centering the window
 		# window_width = 400
@@ -212,7 +224,6 @@ class MontageMakerApp:
 		# Create a grid of images
 		row = 0
 		col = 0
-		# print(image_files)
 		for i in range(len(image_files)):
 			image_file = image_files[i]
 			# Read the image using cv2
