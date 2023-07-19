@@ -12,6 +12,8 @@ from stats_gen import *
 from manipulate import *
 from detection_class import detection
 
+from page_two import *
+
 class MontageMakerApp:
 	def __init__(self):
 		self.root = tk.Tk()
@@ -35,8 +37,11 @@ class MontageMakerApp:
 		self.select_folder_button.pack(side=tk.LEFT)
 
 		# Submit button
-		self.submit_button = tk.Button(self.root, text="Submit", command=self.select_image_window)
+		self.submit_button = tk.Button(self.root, text="Submit", command=self.switchPageTwo)
 		self.submit_button.pack(pady=20)
+
+	def switchPageTwo(self):
+		self.currentPage =
 
 	def run(self):
 		# Centering the window
