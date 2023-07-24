@@ -178,6 +178,17 @@ class MontageMakerApp:
 			self.detection_window(index)
 
 
+		def ai_crop():
+			selected = self.detection_list[index]
+			cropped = crop_img(selected.file)
+			self.show_marks = False
+
+			self.detection_list[index].image = cropped
+
+			self.detection_window(index)
+
+
+
 		self.root.destroy()  # Close the second window
 		self.root = tk.Tk()
 		self.root.title("Image Detection")
@@ -256,14 +267,17 @@ class MontageMakerApp:
 		image_label.pack()
 
 		# Detection buttons in the third frame
-		face_button = tk.Button(third_frame, text="Straigthen face", command=straigthen)
+		face_button = tk.Button(third_frame, text="AI Straigthen", command=straigthen)
 		face_button.pack(pady=5)
 
-		left_eye_button = tk.Button(third_frame, text="Crop (16:9)", command=crop_16_9)
+		left_eye_button = tk.Button(third_frame, text="AI Crop", command=ai_crop)
+		left_eye_button.pack(pady=5)
+
+		left_eye_button = tk.Button(third_frame, text="Manual Crop", command=crop_16_9)
 		left_eye_button.pack(pady=5)
 
 
-		reset_button = tk.Button(third_frame, text="Reset", command=reset_image)
+		reset_button = tk.Button(third_frame, text="Reset image", command=reset_image)
 		reset_button.pack(pady=5)
 
 
@@ -274,14 +288,6 @@ class MontageMakerApp:
 		show_montage_button.pack(pady=5)
 
 
-		# Centering the window
-		# window_width = 400
-		# window_height = 200
-		# screen_width = self.root.winfo_screenwidth()
-		# screen_height = self.root.winfo_screenheight()
-		# x_coordinate = int((screen_width/2) - (window_width/2))
-		# y_coordinate = int((screen_height/2) - (window_height/2))
-		# self.root.geometry("{}x{}+{}+{}".format(window_width, window_height, x_coordinate, y_coordinate))
 		self.root.mainloop()
 
 
@@ -303,18 +309,20 @@ class MontageMakerApp:
 			image_rgb = cv2.cvtColor(detection.image, cv2.COLOR_BGR2RGB)
 			image_tk = ImageTk.PhotoImage(Image.fromarray(image_rgb))
 			self.image_label.config(image=image_tk)
+			self.image_label.image = image_tk
 			self.image_label.pack()
-			# self.image_label.image = image_tk
 			self.confirm_button.config(state=tk.NORMAL)
 			self.confirm_button.pack(pady=10)
 
 		def toggle_mode():
 			if self.crop_mode == "custom":
 				self.crop_mode = "16:9"
-				self.toggle_button.config(text="Custom Mode")
+				self.toggle_button.config(text="Switch to Custom Mode")
+				self.page_label.config(text="16:9 Mode: Click to draw a cropping frame")
 			else:
 				self.crop_mode = "custom"
-				self.toggle_button.config(text="16:9 Mode")
+				self.toggle_button.config(text="switch to 16:9 Mode")
+				self.page_label.config(text="Custom Mode: Click and drag to draw a cropping frame")
 
 			show_image_with_cropping_frame()
 
@@ -368,10 +376,6 @@ class MontageMakerApp:
 
 
 
-				# save cropped image to file
-				# cv2.imwrite("cropped.jpg", cropped_image)
-
-
 		# self.image =image
 		# folder_path = self.folder_entry.get()
 		self.root.destroy()  # Close the current window
@@ -380,6 +384,8 @@ class MontageMakerApp:
 		self.crop_rect = None
 		self.crop_start = None
 		self.crop_mode = "16:9"  # or "custom"
+		self.page_label = tk.Label(self.root, text="16:9 Mode: Click to draw a cropping frame", font=("Helvetica", 16))
+		self.page_label.pack(pady=10)
 		# Image label to display the loaded image
 		self.image_label = tk.Label(self.root)
 		self.image_label.pack()
@@ -413,7 +419,7 @@ class MontageMakerApp:
 				img_tk = ImageTk.PhotoImage(img)
 				self.montage_image_label.config(image=img_tk)
 				self.montage_image_label.image = img_tk
-				# return 0
+
 			#get images from self.detection_list by indexes in montage_order
 			#create one image with all the images side by side
 			else:
@@ -443,11 +449,19 @@ class MontageMakerApp:
 			update_montage_image()
 
 		def save_montage():
+			#save the detection list images in montage folder
+			for i in self.detection_list:
+				#change name from img.ext to imgA.ext
+				parts = i.file.split(".")
+				new_name = ".".join(parts[:-1]) + "a." + parts[-1]
+				cv2.imwrite("montage/"+new_name, i.image)
+
 			#save montage to file
 			montage = cv2.cvtColor(self.montage, cv2.COLOR_BGR2RGB)
-			cv2.imwrite("montage.jpg", montage)
+			cv2.imwrite("montage/montage.jpg", montage)
+
 			#open montage in new window
-			os.system("montage.jpg")
+			os.system("montage/montage.jpg")
 
 
 		self.root.destroy()

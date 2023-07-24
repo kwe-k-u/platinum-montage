@@ -32,12 +32,10 @@ def rotate(path, angle):
     cv2.waitKey(0)
 
 
-def crop(detection, new_img):
-    image = detection.image
+def crop_img(image):
+    return image
 # y=0
 # x=0
 # h=100
 # w=200
 # crop = image[y:y+h, x:x+w]
-
-    pass
