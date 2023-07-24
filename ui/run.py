@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import filedialog
 import cv2
 from PIL import Image, ImageTk
+from image_cropper import ImageCropperApp
 
 parent = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(parent)
@@ -85,7 +86,13 @@ class MontageMakerApp:
 			self.detection_window(index)
 
 		def crop_16_9():
-			pass
+			self.window_crop(self.detection_list[index].image)
+			# self.window_crop(self.detection_list[index].image)
+			# cropper = ImageCropperApp(self.detection_list[index].image,onCropListener)
+			# pass
+		def onCropListener(image):
+			cv2.imshow("cropped",image)
+			cv2.waitKey(0)
 
 		def reset_image():
 			report = generate_report([self.detection_list[index].file])
@@ -144,7 +151,7 @@ class MontageMakerApp:
 
 			# Create a label to display the image
 			label = tk.Button(first_frame,image=img_tk,
-		      command=lambda idx=i : self.detection_window(idx)
+			  command=lambda idx=i : self.detection_window(idx)
 			  )
 			label.image = img_tk
 			label.grid(row=row, column=col, padx=10, pady=10)
@@ -265,6 +272,122 @@ class MontageMakerApp:
 
 
 		self.root.mainloop()
+
+	#window cropper
+	def window_crop(self,image):
+		self.image =image
+		# folder_path = self.folder_entry.get()
+		self.root.destroy()  # Close the current window
+		self.root = tk.Tk()
+		self.root.title("Crop images")
+		self.crop_rect = None
+		self.crop_start = None
+		self.crop_mode = "16:9"  # or "custom"
+		# Image label to display the loaded image
+		self.image_label = tk.Label(self.root)
+		self.image_label.pack()
+
+		# Toggle button to switch between custom and 16:9 modes
+		self.toggle_button = tk.Button(self.root, text="16:9 Mode", command=self.toggle_mode)
+		self.toggle_button.pack()
+
+		# Confirm button to crop the image
+		self.confirm_button = tk.Button(self.root, text="Confirm", command=self.crop_image)
+		self.confirm_button.pack(pady=10)
+		# self.confirm_button.config(state=tk.DISABLED)  # Disable until image loaded
+
+		# Bind mouse events to the image label
+		self.image_label.bind("<ButtonPress-1>", self.on_mouse_press)
+		self.image_label.bind("<B1-Motion>", self.on_mouse_drag)
+		self.image_label.bind("<ButtonRelease-1>", self.on_mouse_release)
+
+		self.show_image()
+		self.root.mainloop()
+
+
+	def show_image(self):
+		# Resize the image to fit the label
+		h, w, _ = self.image.shape
+		max_height = 600
+		max_width = 800
+		if h > max_height or w > max_width:
+			scale = min(max_height / h, max_width / w)
+			self.image = cv2.resize(self.image, (int(w * scale), int(h * scale)))
+
+		# Convert the image to RGB and display in the label
+		# self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
+		# self.image_tk = ImageTk.PhotoImage(Image.fromarray(self.image))
+		# self.image_label = tk.Label(self.root, image=self.image_tk)
+		# self.image_label.pack()
+
+		# cv2.imshow("im",self.image)
+		# cv2.waitKey(0)
+
+		image_rgb = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
+		image_tk = ImageTk.PhotoImage(Image.fromarray(image_rgb))
+		self.image_label.config(image=image_tk)
+		self.image_label.pack()
+		# self.image_label.image = image_tk
+		self.confirm_button.config(state=tk.NORMAL)
+		self.confirm_button.pack(pady=10)
+
+	def toggle_mode(self):
+		if self.crop_mode == "custom":
+			self.crop_mode = "16:9"
+			self.toggle_button.config(text="Custom Mode")
+		else:
+			self.crop_mode = "custom"
+			self.toggle_button.config(text="16:9 Mode")
+
+		self.show_image_with_cropping_frame()
+
+	def on_mouse_press(self, event):
+		self.crop_start = (event.x, event.y)
+
+	def on_mouse_drag(self, event):
+		if self.crop_start:
+			self.crop_rect = (self.crop_start[0], self.crop_start[1], event.x, event.y)
+			self.show_image_with_cropping_frame()
+
+	def on_mouse_release(self, event):
+		self.crop_start = None
+
+	def show_image_with_cropping_frame(self):
+		image_with_frame = self.image.copy()
+
+		if self.crop_mode == "16:9":
+			h, w, _ = image_with_frame.shape
+			aspect_ratio =  9/ 16
+			crop_width = int(h * aspect_ratio)
+
+			# Center the cropping frame around the click (if in 16:9 mode)
+			if self.crop_rect and self.crop_start:
+				cx = (self.crop_rect[0] + self.crop_rect[2]) // 2
+				cy = (self.crop_rect[1] + self.crop_rect[3]) // 2
+				self.crop_rect = (cx - crop_width // 2, cy - h // 2, cx + crop_width // 2, cy + h // 2)
+
+			dark_tint = np.zeros(image_with_frame.shape, dtype=np.uint8)
+			dark_tint.fill(50)  # Darken the tint
+
+			# Apply the dark tint to the areas outside the cropping frame
+			image_with_frame = np.where(dark_tint > image_with_frame, dark_tint, image_with_frame)
+
+		if self.crop_rect:
+			cv2.rectangle(image_with_frame, (self.crop_rect[0], self.crop_rect[1]),
+						  (self.crop_rect[2], self.crop_rect[3]), (255, 0, 0), 2)
+
+		image_rgb = cv2.cvtColor(image_with_frame, cv2.COLOR_BGR2RGB)
+		image_tk = ImageTk.PhotoImage(Image.fromarray(image_rgb))
+		self.image_label.config(image=image_tk)
+		self.image_label.image = image_tk
+
+	def crop_image(self):
+		if self.crop_rect:
+			x1, y1, x2, y2 = self.crop_rect
+			cropped_image = self.image[y1:y2, x1:x2]
+			
+			# save cropped image to file
+			cv2.imwrite("cropped.jpg", cropped_image)
 
 
 # Create and run the MontageMakerApp instance

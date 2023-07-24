@@ -5,18 +5,17 @@ import numpy as np
 from PIL import Image, ImageTk
 
 class ImageCropperApp:
-    def __init__(self):
+    def __init__(self, image,onCropFinish):
         self.root = tk.Tk()
+        print(image)
         self.root.title("Image Cropper")
-        self.image_path = None
-        self.image = None
+        self.onfinish = onCropFinish
+        # self.image = None
+        self.image = image
         self.crop_rect = None
         self.crop_start = None
-        self.crop_mode = "custom"  # or "16:9"
+        self.crop_mode = "16:9"  # or "custom"
 
-        # Load image button
-        self.load_button = tk.Button(self.root, text="Load Image", command=self.load_image)
-        self.load_button.pack(pady=10)
 
         # Image label to display the loaded image
         self.image_label = tk.Label(self.root)
@@ -29,21 +28,16 @@ class ImageCropperApp:
         # Confirm button to crop the image
         self.confirm_button = tk.Button(self.root, text="Confirm", command=self.crop_image)
         self.confirm_button.pack(pady=10)
-        self.confirm_button.config(state=tk.DISABLED)  # Disable until image loaded
+        # self.confirm_button.config(state=tk.DISABLED)  # Disable until image loaded
 
         # Bind mouse events to the image label
         self.image_label.bind("<ButtonPress-1>", self.on_mouse_press)
         self.image_label.bind("<B1-Motion>", self.on_mouse_drag)
         self.image_label.bind("<ButtonRelease-1>", self.on_mouse_release)
 
+        self.show_image()
         self.root.mainloop()
 
-    def load_image(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg;*.png;*.jpeg")])
-        if file_path:
-            self.image_path = file_path
-            self.image = cv2.imread(self.image_path)
-            self.show_image()
 
     def show_image(self):
         # Resize the image to fit the label
@@ -55,10 +49,18 @@ class ImageCropperApp:
             self.image = cv2.resize(self.image, (int(w * scale), int(h * scale)))
 
         # Convert the image to RGB and display in the label
+        # self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
+        # self.image_tk = ImageTk.PhotoImage(Image.fromarray(self.image))
+        # self.image_label = tk.Label(self.root, image=self.image_tk)
+        # self.image_label.pack()
+
+        cv2.imshow("im",self.image)
+        cv2.waitKey(0)
+
         image_rgb = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
         image_tk = ImageTk.PhotoImage(Image.fromarray(image_rgb))
         self.image_label.config(image=image_tk)
-        self.image_label.image = image_tk
+        # self.image_label.image = image_tk
         self.confirm_button.config(state=tk.NORMAL)
 
     def toggle_mode(self):
@@ -116,10 +118,12 @@ class ImageCropperApp:
             x1, y1, x2, y2 = self.crop_rect
             cropped_image = self.image[y1:y2, x1:x2]
             cropped_image_rgb = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
-            cropped_image_pil = Image.fromarray(cropped_image_rgb)
+            if self.onfinish:
+                self.onfinish(cropped_image_rgb)
+            # cropped_image_pil = Image.fromarray(cropped_image_rgb)
 
             # Save the cropped image or perform other actions
-            cropped_image_pil.show()
+            # cropped_image_pil.show()
 
 # Create and run the ImageCropperApp instance
-app = ImageCropperApp()
+# app = ImageCropperApp()
