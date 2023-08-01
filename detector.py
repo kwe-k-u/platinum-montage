@@ -1,6 +1,6 @@
 import cv2
 import mediapipe as mp
-
+from detection_class import detection
 
 left_eye_outline = [263,249,390,373,374,381,382,362,398,384,385,386,387,388,466]
 right_eye_outline = [133,155,154,153,145,144,163,33,246,161,160,159,158,157,173]
@@ -15,15 +15,46 @@ class detector:
 	num_detections = 0
 
 	# converts the image path into an image object and obtains the face mesh for the image
-	def gen_mesh(self,image_path):
+	def gen_mesh(self,image):
 		mp_face_mesh = mp.solutions.face_mesh
 		face_mesh = mp_face_mesh.FaceMesh()
 
-		self.image = cv2.imread(image_path)
+		if(type(image)== str):
+			image_path = image
+			self.image = cv2.imread(image_path)
+		else:
+			self.image = image.image.copy()
+			image_path = image.file
+
 		# rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 		#Facial landmarks
 		self.face_mesh = face_mesh.process(self.image)
+
+		if(self.face_mesh.multi_face_landmarks == None):
+			return None
+
+		img_height = self.image.shape[0]
+		img_width = self.image.shape[1]
+
+
+		row = [image_path,img_height,img_width]
+		temp = []
+		temp.extend(self.detect_left_eye())
+		temp.extend(self.detect_right_eye())
+		temp.extend(self.detect_lips())
+		temp.extend(self.detect_face())
+		temp.extend(self.detect_nose())
+
+		for val in temp:
+			if (type(val) == type((0,0))): #if value is a tuple, split it
+				row.extend([val[0],val[1]])
+			else:
+				row.append(val)
+
+		detection_obj = detection(row)
+
+		return detection_obj
 
 
 
@@ -46,6 +77,10 @@ class detector:
 		# print("Detection count " + str(self.num_detections))
 
 		height, width, _ = self.image.shape
+
+		# print(self.face_mesh.multi_face_landmarks)
+		if (self.face_mesh.multi_face_landmarks == None):
+			return None
 
 		for facial_landmarks in self.face_mesh.multi_face_landmarks:
 			for i in cordinate_index:

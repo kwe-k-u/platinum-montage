@@ -27,8 +27,15 @@ class detection:
 
 		self.file = row[0].value if type(row[0]) != str else row[0]
 		self.image = cv2.imread(self.file)
+		# self.image = cv2.resize(self.image, ( int(750*(9/16)),750))
 		self.img_height = row[1].value if type(row[1]) != int else row[1]
 		self.img_width = row[2].value if type(row[2]) != int else row[2]
+
+		# resize image if its very large
+		# self.scale = self.img_height / 600
+		# if(self.scale > 1):
+		# 	self.scale = (self.img_height)/600
+
 
 		for e in range(0,len(row[3:]),2):
 			if type(row[3:][e]) == int:
@@ -55,6 +62,8 @@ class detection:
 
 
 	def __eq__(self, obj: object) -> bool:
+		if type(obj) != detection:
+			return False
 		return self.left_eye_detection == obj.left_eye_detection and self.right_eye_detection == obj.right_eye_detection and self.lip_detection == obj.lip_detection
 
 

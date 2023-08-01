@@ -116,7 +116,12 @@ def generate_report(file_names):
                 else:
                     row.append(val)
             data.append(row)
-        except Exception:
+        except Exception as e:
+            #list the traceback types
+            m=""
+            print(e.with_traceback(m))
+            print(m)
+
             print("file failed  "+ file)
             write_to_log(file)
             pass
@@ -144,6 +149,17 @@ def read_excel(filename, edited = False) -> list:
         #     print("previs",data[-1].left_eye_detection[0],data[-3].left_eye_detection[0])
     # print("comapris", data[0].left_eye_detection == data[2].left_eye_detection)
     return data
+
+def resize_image(image,seed_height = 100):
+    if type(image) == type(""):
+        img = cv2.imread(image)
+    else:
+        img = image
+    seed_height = 100
+    nw = int(img.shape[1]*(seed_height/img.shape[0]))
+    img = cv2.resize(img, (seed_height, nw))
+    return img
+
 
 
 

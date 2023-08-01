@@ -11,7 +11,7 @@ o.makedirs(cwd + "/montage_report/logs/",511,True)
 # input("wait")
 
 # the folder that contains the images we want to generate a report on
-directory_to_search ="C:\\Users\\KWAKU\\Desktop\Platinum Dental\\Montage maker\\test folder"
+directory_to_search ="C:\\Users\\KWAKU\\Desktop\Platinum Dental\\Montage maker\\pictures";
 directory_to_search = re.sub(r"(?<!/)/(?!/)", "//", directory_to_search) # cleaning the path of escape characters
 
 

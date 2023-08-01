@@ -37,36 +37,37 @@ def find_area(cordinates):
 
 
 def show_points(detection):
-    print("preparing to show points")
-    for i in range(len(detection)):
-        # print(i,"detections")
-        cords = []
-        detect = detection[i]
-        image = np.zeros((600,600,3),dtype=np.uint8)
-        # image = np.zeros((detect.img_width,detect.img_height,3),dtype=np.uint8)
-        cords = detect.face_detection
-        # cords = detect.left_eye_detection
-        # print(cords)
-        # input("waiting")
-        # cords.extend(detect.right_eye_detection)
-        # cords.extend(detect.lip_detection)
-        # cords.extend(detect.face_detection)
-        # cords.extend(detect.nose_detection)
-        col = (256,256,256)#(randint(1,100),randint(1,100),50)
-        for point in cords:
-	        # point times 10 for enlargement
-            cv2.circle(image, (point[0]%500,point[1]%500), 4 , col, -1)
+	print("preparing to show points")
+	for i in range(len(detection)):
+		# print(i,"detections")
+		cords = []
+		detect = detection[i]
+		# image = np.zeros((600,600,3),dtype=np.uint8)
+		image = detect.image.copy()
+		# image = np.zeros((detect.img_width,detect.img_height,3),dtype=np.uint8)
+		cords = detect.face_detection
+		# cords = detect.left_eye_detection
+		# print(cords)
+		# input("waiting")
+		# cords.extend(detect.right_eye_detection)
+		# cords.extend(detect.lip_detection)
+		# cords.extend(detect.face_detection)
+		# cords.extend(detect.nose_detection)
+		col = (256,256,256)#(randint(1,100),randint(1,100),50)
+		for point in cords:
+			# point times 10 for enlargement
+			cv2.circle(image, (point[0]%500,point[1]%500), 4 , col, -1)
 
-        valid = detect.is_valid()
-        # if(valid[1]):
-        cv2.putText(image,"Face "+ str(valid[1]),(10,50),cv2.FONT_HERSHEY_SIMPLEX,1,(100,0,0),2,cv2.LINE_AA)
-        cv2.putText(image,"Eye "+ str(valid[2]),(10,100),cv2.FONT_HERSHEY_SIMPLEX,1,(100,0,0),2,cv2.LINE_AA)
-        cv2.putText(image,"Lip "+ str(valid[3]),(10,150),cv2.FONT_HERSHEY_SIMPLEX,1,(100,0,0),2,cv2.LINE_AA)
+		valid = detect.is_valid()
+		# if(valid[1]):
+		# cv2.putText(image,"Face "+ str(valid[1]),(10,50),cv2.FONT_HERSHEY_SIMPLEX,1,(100,0,0),2,cv2.LINE_AA)
+		# cv2.putText(image,"Eye "+ str(valid[2]),(10,100),cv2.FONT_HERSHEY_SIMPLEX,1,(100,0,0),2,cv2.LINE_AA)
+		# cv2.putText(image,"Lip "+ str(valid[3]),(10,150),cv2.FONT_HERSHEY_SIMPLEX,1,(100,0,0),2,cv2.LINE_AA)
 		# cv2.putText(image,"Nose "+ str(valid[4]),(10,200),cv2.FONT_HERSHEY_SIMPLEX,1,(100,0,0),2,cv2.LINE_AA)
 
-        cv2.imshow(detect.file,image)
-        cv2.waitKey(0)
-        cv2.destroyWindow(detect.file)
+		cv2.imshow(detect.file,image)
+		cv2.waitKey(0)
+		cv2.destroyWindow(detect.file)
 
 
 
@@ -118,7 +119,7 @@ def find_eye_angle(left_cord,right_cord):
 	# normal_angle = (left_mid), (right_mid[0],left_mid[1])
 	angle = np.arctan(delta_y / delta_x)
 
-        # Converting radians to degrees
+		# Converting radians to degrees
 	angle = (angle * 180) / np.pi
 	return  left_mid,right_mid,angle
 

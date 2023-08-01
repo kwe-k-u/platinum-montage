@@ -17,6 +17,7 @@ from page_two import *
 class MontageMakerApp:
 	def __init__(self):
 		self.select_folder_window(False)
+		self.detection_model = detector()
 
 	def select_folder_window(self, existing = True):
 		if(existing):
@@ -70,8 +71,24 @@ class MontageMakerApp:
 
 	# Window 2
 	def select_image_window(self):
+		checks = []
 
+		#allows the user to add and remove images from the list of images to be used
+		def select_all_images():
+			if len(self.selected_images) == len(image_files):
+				self.selected_images = image_files
+				#set all check values to true
+				for i in range(len(checks)):
+					checks[i].set(True)
+			else:
+				self.selected_images = []
+				#set all check values to false
+				for i in range(len(checks)):
+					checks[i].set(False)
+
+		#allows the use to add and remove images from the list of images to be used
 		def toggle_image_selection(image_index):
+
 			if image_files[image_index] in self.selected_images:
 				self.selected_images.remove(image_files[image_index])
 			else:
@@ -95,6 +112,7 @@ class MontageMakerApp:
 		# Create a grid of images
 		row = 0
 		col = 0
+		#create a list of tk booleans for each checkbox the size of image_file
 		for i in range(len(image_files)):
 			image_file = image_files[i]
 			# Read the image using cv2
@@ -108,10 +126,8 @@ class MontageMakerApp:
 			img = Image.fromarray(img)
 			img_tk = ImageTk.PhotoImage(img)
 
-			# Create a label to display the image
-			# label = tk.Label(self.root, image=img_tk)
-			# label.grid(row=row, column=col, padx=10, pady=10)
-			checkbox = tk.Checkbutton(self.root,variable=tk.BooleanVar(),
+			checks.append(tk.BooleanVar())
+			checkbox = tk.Checkbutton(self.root,variable=checks[i],
 									  command=lambda idx=i: toggle_image_selection(idx)
 									  )
 			checkbox.img = img_tk
@@ -130,6 +146,9 @@ class MontageMakerApp:
 
 		change_folder_button = tk.Button(self.root, text="Change directory", command= self.select_folder_window)
 		change_folder_button.grid(row=(len(image_files) // 4) + 3, column=0, columnspan=2, pady=10)
+
+		select_all_button = tk.Button(self.root, text="Select All images", command= select_all_images)
+		select_all_button.grid(row=(len(image_files) // 4) + 3, column=1, columnspan=2)
 
 		detect_face_button = tk.Button(self.root, text="Detect Face", command=self.detection_window)
 		detect_face_button.grid(row=(len(image_files) // 4) + 3, column=2, columnspan=2)
@@ -153,13 +172,37 @@ class MontageMakerApp:
 			self.select_image_window()
 			return 0
 
-		def straigthen():
-			selected = self.detection_list[index]
-			left, right, angle = find_eye_angle(selected.left_eye_detection,selected.right_eye_detection)
-			rotated = rotate(selected.file,angle)
-			self.show_marks = False
+		#rotates the image and centers the face in the frame
+		def process_image():
+			#don't proess images that failed the detection
+			if(self.detection_list[index] == None):
+				return 0
 
-			self.detection_list[index].image = rotated
+			#rotate image to straighten face
+			selected = self.detection_list[index]
+			_, _, angle = find_eye_angle(selected.left_eye_detection,selected.right_eye_detection)
+
+			processed_img = rotate(selected.file,angle)
+			selected.image = processed_img
+
+			temp_detection = self.detection_model.gen_mesh(selected)
+
+			self.detection_list[index] = temp_detection
+			selected = self.detection_list[index]
+			self.detection_list[index].image = processed_img
+
+
+			# f_71 = self.detection_list[index].face_detection[29]
+			# f_264 = self.detection_list[index].face_detection[17]
+
+			# f_151 = self.detection_list[index].face_detection[24]
+			# f_175 = self.detection_list[index].face_detection[6]
+
+			# the 71 and 264 points to determine where the face
+			# if the left point is closer to the edge than the right edge, use
+			#crop the right edge by the difference between the two
+			#if the other is true, crop the left edge by the difference between the two
+
 
 			self.detection_window(index)
 
@@ -168,17 +211,18 @@ class MontageMakerApp:
 			self.detection_window(index)
 
 		def crop_16_9():
-			self.window_crop(self.detection_list[index])
-			# self.window_crop(self.detection_list[index].image)
-			# cropper = ImageCropperApp(self.detection_list[index].image,onCropListener)
-			# pass
-		def onCropListener(image):
-			cv2.imshow("cropped",image)
-			cv2.waitKey(0)
+			if self.detection_list[index] == None:
+				self.window_crop(self.selected_images[index])
+			else:
+				self.window_crop(self.detection_list[index])
 
 		def reset_image():
-			report = generate_report([self.detection_list[index].file])
-			self.detection_list[index] = detection(report[0])
+			if self.detection_list[index] is not None:
+				report = generate_report([self.detection_list[index].file])
+				self.detection_list[index] = detection(report[0])
+			else:
+				self.detection_list[index] = cv2.imread(self.selected_images[index])
+
 			self.show_marks = True
 			self.detection_window(index)
 
@@ -214,9 +258,13 @@ class MontageMakerApp:
 		# self.detection_list = []
 		if(len(self.detection_list) == 0):
 			for f in self.selected_images:
-				detection_row = generate_report([f])
-				detect = detection(detection_row[0])
-				self.detection_list.append(detect)
+				try:
+					detection_row = generate_report([f])
+					detect = detection(detection_row[0])
+					self.detection_list.append(detect)
+				except:
+					self.detection_list.append(None)
+
 
 		# Create a grid of images in the first frame
 		row = 0
@@ -226,15 +274,20 @@ class MontageMakerApp:
 			#PERFORMING DETECTIONS
 			# detector = detector()
 
-			img =  self.detection_list[i].get_marked_img()
+			if self.detection_list[i] == None:
+				img = cv2.imread(self.selected_images[i])
+			else:
+				img =  self.detection_list[i].get_marked_img()
 			# detector.gen_mesh(image_file)
 			# Read the image using cv2
 			# img = cv2.imread(image_file)
 			# Convert the image from BGR to RGB
 
+
 			img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 			# Resize the image to a smaller size (optional)
-			img = cv2.resize(img, (100, 100))
+			#resize image and maintain aspect ratio
+			img = resize_image(img,850)
 
 
 			# Convert the image to Tkinter-compatible format
@@ -259,30 +312,35 @@ class MontageMakerApp:
 		# Display the selected image in the middle frame
 		detect = self.detection_list[index]
 
-		if(self.show_marks):
+		if detect == None:
+			img = cv2.imread(self.selected_images[index])
+		elif (self.show_marks):
 			img = detect.get_marked_img()
 		else:
 			img = detect.image
 
 		img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+		img = resize_image(img,900)
 		img = Image.fromarray(img)
 		img_tk = ImageTk.PhotoImage(img)
 		image_label = tk.Label(middle_frame, image=img_tk)
 		# image_label.image = img_tk
 		image_label.pack()
 
-		# Detection buttons in the third frame
-		face_button = tk.Button(third_frame, text="AI Straigthen", command=straigthen)
-		face_button.pack(pady=5)
+		#Only show AI functionality if a face is detected
+		if detect != None:
+			# Detection buttons in the third frame
+			face_button = tk.Button(third_frame, text="AI process", command=process_image)
+			face_button.pack(pady=5)
 
-		left_eye_button = tk.Button(third_frame, text="AI Crop", command=ai_crop)
-		left_eye_button.pack(pady=5)
+		# left_eye_button = tk.Button(third_frame, text="AI Crop", command=ai_crop)
+		# left_eye_button.pack(pady=5)
 
 		left_eye_button = tk.Button(third_frame, text="Manual Crop", command=crop_16_9)
 		left_eye_button.pack(pady=5)
 
 
-		reset_button = tk.Button(third_frame, text="Reset image", command=reset_image)
+		reset_button = tk.Button(middle_frame, text="Reset image", command=reset_image)
 		reset_button.pack(pady=5)
 
 
@@ -303,15 +361,22 @@ class MontageMakerApp:
 
 
 		def show_image():
+			#if a string is provided(detection failed), read the file
+			if type(detection) == type(""):
+				im = cv2.imread(detection)
+			else:
+				im = detection.image
+
 			# Resize the image to fit the label
-			h, w, _ = detection.image.shape
+			h, w, _ = im.shape
 			max_height = 600
 			max_width = 800
 			if h > max_height or w > max_width:
-				scale = min(max_height / h, max_width / w)
-				self.image = cv2.resize(detection.image, (int(w * scale), int(h * scale)))
+				im = resize_image(im, max_height)
+				# scale = min(max_height / h, max_width / w)
+				# self.image = cv2.resize(im, (int(w * scale), int(h * scale)))
 
-			image_rgb = cv2.cvtColor(detection.image, cv2.COLOR_BGR2RGB)
+			image_rgb = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
 			image_tk = ImageTk.PhotoImage(Image.fromarray(image_rgb))
 			self.image_label.config(image=image_tk)
 			self.image_label.image = image_tk
@@ -343,7 +408,11 @@ class MontageMakerApp:
 			self.crop_start = None
 
 		def show_image_with_cropping_frame():
-			image_with_frame = detection.image.copy()
+			if detection is None:
+				image_with_frame = cv2.imread(self.selected_images[self.selected_index])
+			else:
+				image_with_frame = detection.image.copy()
+				image_with_frame = resize_image(image_with_frame, 1080)
 
 			if self.crop_mode == "16:9":
 				h, w, _ = image_with_frame.shape
@@ -357,7 +426,7 @@ class MontageMakerApp:
 					self.crop_rect = (cx - crop_width // 2, cy - h // 2, cx + crop_width // 2, cy + h // 2)
 
 				dark_tint = np.zeros(image_with_frame.shape, dtype=np.uint8)
-				dark_tint.fill(50)  # Darken the tint
+				dark_tint.fill(10)  # Darken the tint
 
 				# Apply the dark tint to the areas outside the cropping frame
 				image_with_frame = np.where(dark_tint > image_with_frame, dark_tint, image_with_frame)
@@ -430,7 +499,11 @@ class MontageMakerApp:
 			else:
 				images = []
 				for i in montage_order:
-					mon_image = self.detection_list[i].image;
+					if self.detection_list[i] is None:
+						mon_image = cv2.imread(self.selected_images[i])
+					else:
+						mon_image = self.detection_list[i].image
+
 					mon_image = cv2.cvtColor(mon_image, cv2.COLOR_BGR2RGB)
 					mon_image = cv2.resize(mon_image, (250, 250))
 					images.append(mon_image)
@@ -455,18 +528,27 @@ class MontageMakerApp:
 
 		def save_montage():
 			#save the detection list images in montage folder
-			for i in self.detection_list:
+			for i in range(len(self.detection_list)):
 				#change name from img.ext to imgA.ext
-				parts = i.file.split(".")
+				if self.detection_list[i] is None:
+					parts = self.selected_images[i].split(".")
+				else:
+					parts = self.detection_list[i].file.split(".")
+
 				new_name = ".".join(parts[:-1]) + "a." + parts[-1]
-				cv2.imwrite("montage/"+new_name, i.image)
+				if self.detection_list[i] is None:
+					sav_im = cv2.imread(self.selected_images[i])
+				else:
+					sav_im = self.detection_list[i].image
+
+				cv2.imwrite(new_name, sav_im)
+				print("saving ","montage/"+new_name)
 
 			#save montage to file
 			montage = cv2.cvtColor(self.montage, cv2.COLOR_BGR2RGB)
 			cv2.imwrite("montage/montage.jpg", montage)
+			print("saving montage: ","montage/montage.jpg")
 
-			#open montage in new window
-			os.system("montage/montage.jpg")
 
 
 		self.root.destroy()
@@ -498,9 +580,14 @@ class MontageMakerApp:
 			checkbox = tk.Checkbutton(botom_frame, variable=tk.BooleanVar(),
 			     command=lambda idx=i: toggle_image_selection(idx)
 			     )
-			image = detection.image
+			if detection is None:
+				image = cv2.imread(self.selected_images[i])
+			else:
+				image = detection.image
+
 			image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-			image = cv2.resize(image, (100, 100))
+			image = resize_image(image,300)
+			# image = cv2.resize(image, (100, 100))
 			img_tk = ImageTk.PhotoImage(Image.fromarray(image))
 			checkbox.img = img_tk
 			checkbox.config(image = img_tk)
