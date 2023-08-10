@@ -175,33 +175,25 @@ class MontageMakerApp:
 		#rotates the image and centers the face in the frame
 		def process_image():
 			#don't proess images that failed the detection
-			if(self.detection_list[index] == None):
-				return 0
+			if self.detection_list[index] is not None:
 
-			#rotate image to straighten face
-			selected = self.detection_list[index]
-			_, _, angle = find_eye_angle(selected.left_eye_detection,selected.right_eye_detection)
+				#rotate image to straighten face
+				selected = self.detection_list[index]
+				_, _, angle = find_eye_angle(selected.left_eye_detection,selected.right_eye_detection)
 
-			processed_img = rotate(selected.file,angle)
-			selected.image = processed_img
+				print(angle)
 
-			temp_detection = self.detection_model.gen_mesh(selected)
+				processed_img = rotate(selected.file,angle)
 
-			self.detection_list[index] = temp_detection
-			selected = self.detection_list[index]
-			self.detection_list[index].image = processed_img
+				selected.image = processed_img
 
+				temp_detection = self.detection_model.gen_mesh(selected)
 
-			# f_71 = self.detection_list[index].face_detection[29]
-			# f_264 = self.detection_list[index].face_detection[17]
+				self.detection_list[index] = temp_detection
+				selected = self.detection_list[index]
 
-			# f_151 = self.detection_list[index].face_detection[24]
-			# f_175 = self.detection_list[index].face_detection[6]
+				self.detection_list[index].image = processed_img
 
-			# the 71 and 264 points to determine where the face
-			# if the left point is closer to the edge than the right edge, use
-			#crop the right edge by the difference between the two
-			#if the other is true, crop the left edge by the difference between the two
 
 
 			self.detection_window(index)
@@ -227,14 +219,14 @@ class MontageMakerApp:
 			self.detection_window(index)
 
 
-		def ai_crop():
-			selected = self.detection_list[index]
-			cropped = crop_img(selected.file)
-			self.show_marks = False
+		# def ai_crop():
+		# 	selected = self.detection_list[index]
+		# 	cropped = crop_img(selected.file)
+		# 	self.show_marks = False
 
-			self.detection_list[index].image = cropped
+		# 	self.detection_list[index].image = cropped
 
-			self.detection_window(index)
+		# 	self.detection_window(index)
 
 
 
@@ -285,9 +277,8 @@ class MontageMakerApp:
 
 
 			img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-			# Resize the image to a smaller size (optional)
 			#resize image and maintain aspect ratio
-			img = resize_image(img,850)
+			img = resize_image(img)
 
 
 			# Convert the image to Tkinter-compatible format
@@ -320,7 +311,7 @@ class MontageMakerApp:
 			img = detect.image
 
 		img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-		img = resize_image(img,900)
+		img = resize_image(img,750)
 		img = Image.fromarray(img)
 		img_tk = ImageTk.PhotoImage(img)
 		image_label = tk.Label(middle_frame, image=img_tk)
@@ -359,7 +350,6 @@ class MontageMakerApp:
 	# Window 4
 	def window_crop(self,detection):
 
-
 		def show_image():
 			#if a string is provided(detection failed), read the file
 			if type(detection) == type(""):
@@ -368,11 +358,7 @@ class MontageMakerApp:
 				im = detection.image
 
 			# Resize the image to fit the label
-			h, w, _ = im.shape
-			max_height = 600
-			max_width = 800
-			if h > max_height or w > max_width:
-				im = resize_image(im, max_height)
+			im = resize_image(im, 750)
 				# scale = min(max_height / h, max_width / w)
 				# self.image = cv2.resize(im, (int(w * scale), int(h * scale)))
 
@@ -408,11 +394,11 @@ class MontageMakerApp:
 			self.crop_start = None
 
 		def show_image_with_cropping_frame():
-			if detection is None:
-				image_with_frame = cv2.imread(self.selected_images[self.selected_index])
+			if type(detection) is type(""):
+				image_with_frame = cv2.imread(detection)
 			else:
 				image_with_frame = detection.image.copy()
-				image_with_frame = resize_image(image_with_frame, 1080)
+				image_with_frame = resize_image(image_with_frame, 750)
 
 			if self.crop_mode == "16:9":
 				h, w, _ = image_with_frame.shape
@@ -465,7 +451,7 @@ class MontageMakerApp:
 		self.image_label.pack()
 
 		# Toggle button to switch between custom and 16:9 modes
-		self.toggle_button = tk.Button(self.root, text="16:9 Mode", command=toggle_mode)
+		self.toggle_button = tk.Button(self.root, text="Switch to Custom Mode", command=toggle_mode)
 		self.toggle_button.pack()
 
 		# Confirm button to crop the image
@@ -481,7 +467,7 @@ class MontageMakerApp:
 		show_image()
 		self.root.mainloop()
 
-	# Window 5
+	# Window 5 - create and save montage image
 	def create_montage_img(self):
 		montage_order = []
 

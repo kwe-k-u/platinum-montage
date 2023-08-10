@@ -32,6 +32,7 @@ class detector:
 		self.face_mesh = face_mesh.process(self.image)
 
 		if(self.face_mesh.multi_face_landmarks == None):
+			print('no face detected')
 			return None
 
 		img_height = self.image.shape[0]

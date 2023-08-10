@@ -155,7 +155,6 @@ def resize_image(image,seed_height = 100):
         img = cv2.imread(image)
     else:
         img = image
-    seed_height = 100
     nw = int(img.shape[1]*(seed_height/img.shape[0]))
     img = cv2.resize(img, (seed_height, nw))
     return img
