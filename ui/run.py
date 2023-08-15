@@ -2,8 +2,8 @@ import os
 import sys
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import ttk
 import cv2
-from PIL import Image, ImageTk
 
 parent = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(parent)
@@ -19,6 +19,7 @@ class MontageMakerApp:
 		self.select_folder_window(False)
 		self.detection_model = detector()
 
+	#window 1
 	def select_folder_window(self, existing = True):
 		if(existing):
 			self.root.destroy()
@@ -120,11 +121,13 @@ class MontageMakerApp:
 			# Convert the image from BGR to RGB
 			img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 			# Resize the image to a smaller size (optional)
-			img = cv2.resize(img, (200, 200))
+			# img = cv2.resize(img, (200, 200))
+			img = resize_image(img,200)
 
 			# Convert the image to Tkinter-compatible format
-			img = Image.fromarray(img)
-			img_tk = ImageTk.PhotoImage(img)
+			# img = Image.fromarray(img)
+			# img_tk = ImageTk.PhotoImage(img)
+			img_tk = create_tk_image(img)
 
 			checks.append(tk.BooleanVar())
 			checkbox = tk.Checkbutton(self.root,variable=checks[i],
@@ -150,7 +153,9 @@ class MontageMakerApp:
 		select_all_button = tk.Button(self.root, text="Select All images", command= select_all_images)
 		select_all_button.grid(row=(len(image_files) // 4) + 3, column=1, columnspan=2)
 
-		detect_face_button = tk.Button(self.root, text="Detect Face", command=self.detection_window)
+		# Process all images and skip to montage arrangement
+		detect_face_button = tk.Button(self.root, text="Detect Face", command=self.skip_to_montage)
+		# detect_face_button = tk.Button(self.root, text="Detect Face", command=self.detection_window)
 		detect_face_button.grid(row=(len(image_files) // 4) + 3, column=2, columnspan=2)
 
 
@@ -181,13 +186,12 @@ class MontageMakerApp:
 				selected = self.detection_list[index]
 				_, _, angle = find_eye_angle(selected.left_eye_detection,selected.right_eye_detection)
 
-				print(angle)
 
-				processed_img = rotate(selected.file,angle)
+				processed_img = rotate(selected.image,angle)
 
-				selected.image = processed_img
 
 				temp_detection = self.detection_model.gen_mesh(selected)
+				selected.image = processed_img
 
 				self.detection_list[index] = temp_detection
 				selected = self.detection_list[index]
@@ -282,8 +286,9 @@ class MontageMakerApp:
 
 
 			# Convert the image to Tkinter-compatible format
-			img = Image.fromarray(img)
-			img_tk = ImageTk.PhotoImage(img)
+			img_tk = create_tk_image(img)
+			# img = Image.fromarray(img)
+			# img_tk = ImageTk.PhotoImage(img)
 
 
 			# Create a label to display the image
@@ -312,8 +317,9 @@ class MontageMakerApp:
 
 		img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 		img = resize_image(img,750)
-		img = Image.fromarray(img)
-		img_tk = ImageTk.PhotoImage(img)
+		# img = Image.fromarray(img)
+		# img_tk = ImageTk.PhotoImage(img)
+		img_tk = create_tk_image(img)
 		image_label = tk.Label(middle_frame, image=img_tk)
 		# image_label.image = img_tk
 		image_label.pack()
@@ -363,7 +369,8 @@ class MontageMakerApp:
 				# self.image = cv2.resize(im, (int(w * scale), int(h * scale)))
 
 			image_rgb = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-			image_tk = ImageTk.PhotoImage(Image.fromarray(image_rgb))
+			image_tk = create_tk_image(image_rgb)
+			# image_tk = ImageTk.PhotoImage(Image.fromarray(image_rgb))
 			self.image_label.config(image=image_tk)
 			self.image_label.image = image_tk
 			self.image_label.pack()
@@ -401,7 +408,7 @@ class MontageMakerApp:
 				image_with_frame = resize_image(image_with_frame, 750)
 
 			if self.crop_mode == "16:9":
-				h, w, _ = image_with_frame.shape
+				h = image_with_frame.shape[0]
 				aspect_ratio =  9/ 16
 				crop_width = int(h * aspect_ratio)
 
@@ -422,7 +429,8 @@ class MontageMakerApp:
 							(self.crop_rect[2], self.crop_rect[3]), (255, 0, 0), 2)
 
 			image_rgb = cv2.cvtColor(image_with_frame, cv2.COLOR_BGR2RGB)
-			image_tk = ImageTk.PhotoImage(Image.fromarray(image_rgb))
+			# image_tk = ImageTk.PhotoImage(Image.fromarray(image_rgb))
+			image_tk = create_tk_image(image_rgb)
 			self.image_label.config(image=image_tk)
 			self.image_label.image = image_tk
 
@@ -467,6 +475,40 @@ class MontageMakerApp:
 		show_image()
 		self.root.mainloop()
 
+
+	# skip to montage window
+	def skip_to_montage(self):
+		#show a loading page
+		self.root.destroy()
+		self.root = tk.Tk()
+		self.root.title("Loading")
+			# Create a label to display the loading text
+		loading_label = tk.Label(self.root, text="Processing Images", font=("Helvetica", 16))
+		loading_label.pack(pady=20)
+
+		# Create a loading icon using the ttk.Progressbar widget
+		loading_icon = ttk.Progressbar(self.root, mode="indeterminate")
+		loading_icon.pack(pady=10)
+		loading_icon.start()
+		# self.root.mainloop()
+
+		for i in range(len(self.selected_images)):
+			# try:
+			report = generate_report([self.selected_images[i]])[0]
+			detect = detection(report)
+			_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
+			# print(angle)
+			proc_img = rotate(detect.image,angle)
+			detect = self.detection_model.gen_mesh(detect)
+			detect.image = proc_img
+			self.detection_list.append(detect)
+			# except:
+			# 	print("error caught")
+			# 	self.detection_list.append(None)
+
+		self.create_montage_img()
+
+
 	# Window 5 - create and save montage image
 	def create_montage_img(self):
 		montage_order = []
@@ -475,8 +517,9 @@ class MontageMakerApp:
 			#if montage_order is empty show a black image
 			if len(montage_order) == 0:
 				self.montage = np.zeros((400, 400, 3), np.uint8)
-				img = Image.fromarray(self.montage)
-				img_tk = ImageTk.PhotoImage(img)
+				# img = Image.fromarray(self.montage)
+				# img_tk = ImageTk.PhotoImage(img)
+				img_tk = create_tk_image(self.montage)
 				self.montage_image_label.config(image=img_tk)
 				self.montage_image_label.image = img_tk
 
@@ -491,15 +534,17 @@ class MontageMakerApp:
 						mon_image = self.detection_list[i].image
 
 					mon_image = cv2.cvtColor(mon_image, cv2.COLOR_BGR2RGB)
-					mon_image = cv2.resize(mon_image, (250, 250))
+					# mon_image = cv2.resize(mon_image, (250, 250))
+					mon_image = resize_image(mon_image,250)
 					images.append(mon_image)
 
 
 				#concatenate images
 				self.montage = np.concatenate(images, axis=1)
 
-				montage = Image.fromarray(self.montage)
-				montage_tk = ImageTk.PhotoImage(montage)
+				# montage = Image.fromarray(self.montage)
+				# montage_tk = ImageTk.PhotoImage(montage)
+				montage_tk = create_tk_image(self.montage)
 				self.montage_image_label.config(image=montage_tk)
 				self.montage_image_label.image = montage_tk
 
@@ -527,13 +572,13 @@ class MontageMakerApp:
 				else:
 					sav_im = self.detection_list[i].image
 
+				print("saving ",new_name)
 				cv2.imwrite(new_name, sav_im)
-				print("saving ","montage/"+new_name)
 
 			#save montage to file
 			montage = cv2.cvtColor(self.montage, cv2.COLOR_BGR2RGB)
-			cv2.imwrite("montage/montage.jpg", montage)
-			print("saving montage: ","montage/montage.jpg")
+			print("saving montage: ",".".join(parts[:-1])+"montage.jpg")
+			cv2.imwrite(".".join(parts[:-1])+"montage.jpg", montage)
 
 
 
@@ -555,26 +600,28 @@ class MontageMakerApp:
 
 		self.montage_image_label = tk.Label(top_frame)
 		img = np.zeros((250, 250, 3), np.uint8)
-		img = Image.fromarray(img)
-		img_tk = ImageTk.PhotoImage(img)
+		# img = Image.fromarray(img)
+		# img_tk = ImageTk.PhotoImage(img)
+		img_tk = create_tk_image(img)
 		self.montage_image_label.config(image=img_tk)
 		self.montage_image_label.image = img_tk
 		self.montage_image_label.pack()
 
 		i = 0
-		for detection in self.detection_list:
+		for detect in self.detection_list:
 			checkbox = tk.Checkbutton(botom_frame, variable=tk.BooleanVar(),
 			     command=lambda idx=i: toggle_image_selection(idx)
 			     )
-			if detection is None:
+			if detect is None:
 				image = cv2.imread(self.selected_images[i])
 			else:
-				image = detection.image
+				image = detect.image
 
 			image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 			image = resize_image(image,300)
 			# image = cv2.resize(image, (100, 100))
-			img_tk = ImageTk.PhotoImage(Image.fromarray(image))
+			# img_tk = ImageTk.PhotoImage(Image.fromarray(image))
+			img_tk = create_tk_image(image)
 			checkbox.img = img_tk
 			checkbox.config(image = img_tk)
 			checkbox.grid(row=0, column=i, padx=10, pady=10)
