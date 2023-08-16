@@ -15,11 +15,12 @@ def rotate(image, angle):
         top_left, bottom_right, top_right,bottom_left = None, None, None, None
         im_height,im_width = matrix.shape[:2]
         threshold= 1
+
         #top to bottom
         for row in range(im_height):
             #stop looping if the top crop point has been found
-            # if top_left  is not None:
-            #     break
+            if top_left is not None and bottom_right is not None:
+                break
             #left to right
             for col in range(im_width):
                 #top left marker
@@ -29,23 +30,11 @@ def rotate(image, angle):
                         top_left = (row,col)
 
                 # bottom right marker
-                if row ==0 or col == 0:
-                    continue
-                if bottom_right is None:
+                if bottom_right is None and row != 0 and col != 0:
                     pixel = matrix[-row][-col]
                     if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
                         bottom_right = (-row,-col)
 
-                # #top right marker
-                # if top_right is None:
-                #     pixel = matrix[row][-col]
-                #     if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-                #         top_right = (row,-col)
-
-                # if bottom_left is None:
-                #     pixel = matrix[-row][col]
-                #     if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-                #         bottom_left = (-row,col)
 
                 #stop looping if all markers have been found
                 if bottom_right is not None and top_left is not None:
@@ -53,48 +42,36 @@ def rotate(image, angle):
 
 
 
-        #bottom to top
-        # for row in range(im_height-1,0,-1):
-        #     if bottom_right is not None:
-        #         break
-        #     #right to left
-        #     for col in range (im_width-1,0,-1):
-        #         pixel = matrix[row][col]
-        #         if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-        #             bottom_right = (row,col)
-        #             break
         cropped_image = matrix[top_left[0]:bottom_right[0],top_left[1]:bottom_right[1]]
         im_height, im_width = cropped_image.shape[:2]
-
-        # right to left
-        for col in range(im_width-1,0,-1):
-            if top_right is not None and bottom_left is not None:
-                break
-            # top to bottom
-            for row in range(im_height):
-                if top_right is None:
-                    pixel = cropped_image[row][col]
-                    if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-                        top_right = row
-                    # break
-
-                # if bottom_left is None:
-                #     pixel = cropped_image[-row][col]
-                #     if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-                #         bottom_left = -row
-
 
 
         # left to right
         for col in range(im_width):
-            if bottom_left is not None:
+            if bottom_left is not None and top_right is not None:
                 break
-            # bottom to top
-            for row in range(im_height-1,0,-1):
-                pixel = cropped_image[row][col]
-                if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-                    bottom_left = row
+            # top to bottom
+            for row in range(im_height):
+                if top_right is not None and bottom_left is not None:
                     break
+                if top_right is None and col != 0:
+                    pixel = cropped_image[row][-col]
+                    if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
+                        top_right = row
+
+                if bottom_left is None and row != 0:
+                    pixel = cropped_image[-row][col]
+                    if pixel[0] > threshold and pixel[1] > 0 and pixel[2] > threshold:
+                        bottom_left = -row
+
+
+
+
+
+
+
+
+        print(top_left,bottom_left,top_right,bottom_right)
         if top_right is not None and bottom_left is not None:
             cropped_image = cropped_image[top_right:bottom_left][:]
         elif top_right is None and bottom_left is not None:
@@ -114,48 +91,43 @@ def rotate(image, angle):
         threshold= 1
         #top to bottom
         for row in range(im_height):
-            if top_right is not None:
+            if top_right is not None and bottom_left is not None:
                 break
             #right to left
-            for col in range(im_width-1,0,-2):
-                pixel = matrix[row][col]
-                if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-                    top_right = (row,col)
-                    break
-
-        # bottom to top
-        for row in range(im_height-1,0,-1):
-            if bottom_left is not None:
-                break
-            # left to right
             for col in range(im_width):
-                pixel = matrix[row][col]
-                if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-                    bottom_left = (row,col)
-                    break
+                if top_right is None and col != 0:
+                    pixel = matrix[row][-col]
+                    if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
+                        top_right = (row,-col)
+
+                if bottom_left is None and row != 0:
+                    pixel = matrix[-row][col]
+                    if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
+                        bottom_left = (-row,col)
+
         cropped_image = matrix[top_right[0]:bottom_left[0],bottom_left[1]:top_right[1]]
         im_height,im_width = cropped_image.shape[:2]
 
-        # left to right
         for col in range(im_width):
-            if top_left is not None:
+            if top_left is not None and bottom_right is not None:
                 break
-            # top to bottom
             for row in range(im_height):
-                pixel = cropped_image[row][col]
-                if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-                    top_left=row
+                if top_left is not None and bottom_right is not None:
                     break
+                if top_left is None:
+                    pixel = cropped_image[row][col]
+                    if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
+                        top_left = row
 
-        #right to left
-        for col in range(im_width-1,0,-1):
-            if bottom_right is not None:
-                break
-            for row in range(im_height-1,0,-1):
-                pixel = cropped_image[row][col]
-                if pixel[0] > threshold and pixel[1] > threshold and pixel[2] > threshold:
-                    bottom_right = row
-                    break
+                if bottom_right is None and col != 0 and row != 0:
+                    pixel = cropped_image[-row][-col]
+                    if pixel[0] >threshold and pixel[1] > threshold and pixel[2] > threshold:
+                        bottom_right = -row
+
+                # for row in range(im_width):
+
+
+
 
         print(top_left,bottom_left,top_right,bottom_right)
         if top_left is not None and bottom_right is not None:

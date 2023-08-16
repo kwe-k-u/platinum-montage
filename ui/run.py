@@ -488,21 +488,19 @@ class MontageMakerApp:
 		# self.root.mainloop()
 
 		for i in range(len(self.selected_images)):
-			# try:
-			report = generate_report([self.selected_images[i]])[0]
-			detect = detection(report)
-			_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
-			# print(angle)
-			print(detect)
-			proc_img = rotate(detect.image,angle)
-			detect = self.detection_model.gen_mesh(detect)
-			detect.image = proc_img
-			self.detection_list.append(detect)
-			# except:
-				# print("error caught")
-				# log error
-
-				# self.detection_list.append(None)
+			try:
+				report = generate_report([self.selected_images[i]])[0]
+				detect = detection(report)
+				_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
+				# print(angle)
+				print(detect)
+				proc_img = rotate(detect.image,angle)
+				detect = self.detection_model.gen_mesh(detect)
+				detect.image = proc_img
+				self.detection_list.append(detect)
+			except:
+				print("error caught")
+				self.detection_list.append(None)
 
 		self.create_montage_img()
 
