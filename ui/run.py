@@ -12,8 +12,6 @@ from stats_gen import *
 from manipulate import *
 from detection_class import detection
 
-from page_two import *
-
 class MontageMakerApp:
 	def __init__(self):
 		self.select_folder_window(False)
@@ -44,11 +42,8 @@ class MontageMakerApp:
 		self.select_folder_button.pack(side=tk.LEFT)
 
 		# Submit button
-		self.submit_button = tk.Button(self.root, text="Submit", command=self.switchPageTwo)
+		self.submit_button = tk.Button(self.root, text="Submit", command=self.select_image_window)
 		self.submit_button.pack(pady=20)
-
-	def switchPageTwo(self):
-		self.currentPage =
 
 	def run(self):
 		# Centering the window
@@ -498,13 +493,16 @@ class MontageMakerApp:
 			detect = detection(report)
 			_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
 			# print(angle)
+			print(detect)
 			proc_img = rotate(detect.image,angle)
 			detect = self.detection_model.gen_mesh(detect)
 			detect.image = proc_img
 			self.detection_list.append(detect)
 			# except:
-			# 	print("error caught")
-			# 	self.detection_list.append(None)
+				# print("error caught")
+				# log error
+
+				# self.detection_list.append(None)
 
 		self.create_montage_img()
 
@@ -578,7 +576,7 @@ class MontageMakerApp:
 			#save montage to file
 			montage = cv2.cvtColor(self.montage, cv2.COLOR_BGR2RGB)
 			print("saving montage: ",".".join(parts[:-1])+"montage.jpg")
-			cv2.imwrite(".".join(parts[:-1])+"montage.jpg", montage)
+			cv2.imwrite(".".join(parts[:-1])+"-montage.jpg", montage)
 
 
 
@@ -633,5 +631,6 @@ class MontageMakerApp:
 
 
 # Create and run the MontageMakerApp instance
-app = MontageMakerApp()
-app.run()
+if __name__ == "__main__":
+	app = MontageMakerApp()
+	app.run()

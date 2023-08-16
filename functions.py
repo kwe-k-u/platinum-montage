@@ -1,5 +1,4 @@
 import os
-import re
 from openpyxl import Workbook, open as open_excel
 # import detector
 from  detection_class import detection
@@ -7,6 +6,9 @@ from detector import detector
 from time import time
 # import dlib
 import cv2
+
+
+from PIL import Image, ImageTk
 
 cwd = os.getcwd()
 
@@ -150,17 +152,22 @@ def read_excel(filename, edited = False) -> list:
     # print("comapris", data[0].left_eye_detection == data[2].left_eye_detection)
     return data
 
-def resize_image(image,seed_height = 100):
+def resize_image(image,seed_width = 100):
     if type(image) == type(""):
         img = cv2.imread(image)
     else:
         img = image
-    nw = int(img.shape[1]*(seed_height/img.shape[0]))
-    img = cv2.resize(img, (seed_height, nw))
+    nh = int(img.shape[1]*(seed_width/img.shape[0]))
+    img = cv2.resize(img, (nh, seed_width))
     return img
 
 
-
+#creates a tk image object for the ui
+def create_tk_image(image):
+    resized_image = image
+    im = Image.fromarray(resized_image)
+    img_tk = ImageTk.PhotoImage(im)
+    return img_tk
 
 
 
