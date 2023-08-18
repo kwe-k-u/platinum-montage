@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # Collect results from the queue
     total_sum = 0
+    # print('entry', result_queue.get())
     while not result_queue.empty():
         total_sum += result_queue.get()
-
     print(f"Sum of squares: {total_sum}")
