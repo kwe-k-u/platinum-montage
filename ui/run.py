@@ -474,18 +474,18 @@ class MontageMakerApp:
 	# skip to montage window
 	def skip_to_montage(self):
 		#show a loading page
-		self.root.destroy()
-		self.root = tk.Tk()
-		self.root.title("Loading")
-			# Create a label to display the loading text
-		loading_label = tk.Label(self.root, text="Processing Images", font=("Helvetica", 16))
-		loading_label.pack(pady=20)
+		# self.root.destroy()
+		# self.root = tk.Tk()
+		# self.root.title("Loading")
+		# 	# Create a label to display the loading text
+		# loading_label = tk.Label(self.root, text="Processing Images", font=("Helvetica", 16))
+		# loading_label.pack(pady=20)
 
-		# Create a loading icon using the ttk.Progressbar widget
-		loading_icon = ttk.Progressbar(self.root, mode="indeterminate")
-		loading_icon.pack(pady=10)
-		loading_icon.start()
-		# self.root.mainloop()
+		# # Create a loading icon using the ttk.Progressbar widget
+		# loading_icon = ttk.Progressbar(self.root, mode="indeterminate")
+		# loading_icon.pack(pady=10)
+		# loading_icon.start()
+		# # self.root.mainloop()
 
 		for i in range(len(self.selected_images)):
 			try:
