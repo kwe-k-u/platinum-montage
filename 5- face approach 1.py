@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 import sys
+import multiprocessing
 
 parent = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(parent)
@@ -81,6 +82,7 @@ def get_bounds(entry_outline):
 	return (smallest_x, smallest_y, largest_x, largest_y)
 
 
+
 files = ["IMG_0500.JPG","IMG_0499.JPG","IMG_0501.JPG","IMG_0503.JPG","IMG_0504.JPG"]
 files = ["C:\\Users\\KWAKU\\Desktop\\Platinum Dental\\Montage maker\\pictures\\"+x for x in files]
 images = []
@@ -90,14 +92,9 @@ for path in files:
 		report = generate_report([path])[0]
 		detect = detection(report)
 		_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
-		# print(angle)
 		proc_img = rotate(detect.image,angle)
-		# detect = detection_model.gen_mesh(detect)
-		# detect.image = proc_img
 	except:
 		proc_img = cv2.imread(path)
-
-	# images.append(proc_img)
 
 	final_outline = get_outline(proc_img)
 	proc_img = proc_img[0:math.floor(proc_img.shape[0]*0.85),0:proc_img.shape[1]]
@@ -108,17 +105,9 @@ for path in files:
 	right_pad = final_outline.shape[1] - largest_x
 	top_excess = smallest_y
 	area = (largest_x - smallest_x) * (largest_y - smallest_y)
-	# new_height = 500
-	# new_width = (new_height * final_outline.shape[0]) / final_outline.shape[1]
-	# print("183 size before",proc_img.shape)
-	new_image = proc_img#cv2.resize(proc_img,(int(new_height),int(new_width)))
-	print("proc and outline shapes",proc_img.shape[:2] , new_image.shape[:2])
-	# print("185 size after",new_image.shape)
-	# cv2.imshow("outline",final_outline)
-	# cv2.waitKey(0)
 
 
-	images.append((new_image,area))
+	images.append((proc_img,area))
 
 
 # sort images by area
@@ -134,9 +123,7 @@ for index in range(len(images)):
 		new_height, new_width = current[0].shape[:2]
 		new_height *= ratio
 		new_width *= ratio
-		print("206 size before",current[0].shape)
 		new_image = cv2.resize(current[0], (int(new_height),int(new_width)))
-		print("208 size after",new_image.shape)
 		images[index] = (new_image,new_area)
 
 
@@ -168,6 +155,7 @@ for element in excess_list:
 	if element_padding > pad_val:
 		images[im_index] = (images[im_index][0][:][pad_val:],images[im_index][1])
 		#crop by smallest horizontal
+
 	# right crop
 	element_padding = element[3]
 	if element_padding > pad_val:
@@ -184,69 +172,9 @@ for entry in images:
 for index in range(len(images)):
 	shape = images[index][0].shape
 	if min_x != shape[0] or min_y != shape[1]:
-		print("256 size before",images[index][0].shape)
 		images[index] = (cv2.resize(images[index][0], (min_y,min_x)), images[index][1])
-		print("258 size after",images[index][0].shape)
-		print('min shape',(min_x,min_y),'current shape',shape)
 
-	print("shapes",index,images[index][0].shape)
 # concatenate images side by side
 montage = np.concatenate([x[0] for x in images],axis=1)
 cv2.imwrite("final.jpg",montage)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# resize images to the same area but maintain aspect ratios
-# images = sorted(images,key=lambda x: x[1])
-# mid_img, mid_area = images[len(images)//2]
-
-# for img, area in images:
-# 	if (area > mid_area):
-# 		img = cv2.resize(img,(mid_img.shape[1],mid_img.shape[0]))
-# 	elif (area < mid_area):
-# 		mid_img = cv2.resize(mid_img,(img.shape[1],img.shape[0]))
-
-
-# images.reverse()
-# outline = np.concatenate([x[0] for x in images],axis=1)
-# cv2.imwrite("final.jpg",outline)
-
-
-# outline_n = np.concatenate([x[0] for x in images],axis=1)
-# put outline below outline_n
-# outline = np.concatenate([outline_n,mid_img],axis=0)
-
-
-# cv2.imwrite("resized.jpg",outline)
-# w = (outline.shape[0] * h) // outline.shape[1]
-# outline.resize((w,h))
-# cv2.imshow("edited",outline)
-# cv2.waitKey(0)
