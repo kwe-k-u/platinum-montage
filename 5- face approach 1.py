@@ -60,7 +60,7 @@ def get_outline(entry_image, path = None):
 	return (path,final_outline, entry_image)
 
 
-def get_bounds(entry_outline):
+def get_bounds(entry_outline, proc_img = None):
 	x_array, y_array = [],[]
 
 	for r in range(entry_outline.shape[0]):
@@ -79,8 +79,10 @@ def get_bounds(entry_outline):
 	smallest_y = sum(y_array[:y_10_percent])//len(y_array[:y_10_percent])
 	largest_y = sum(y_array[-y_10_percent:])//len(y_array[-y_10_percent:])
 	largest_x = sum(x_array[-x_10_percent:])//len(x_array[-x_10_percent:])
+	if proc_img is None:
+		return (smallest_x, smallest_y, largest_x, largest_y)
 
-	return (smallest_x, smallest_y, largest_x, largest_y)
+	return (smallest_x, smallest_y, largest_x, largest_y, proc_img)
 
 def get_detections(path, index = None):
 		try:
@@ -96,6 +98,7 @@ def get_detections(path, index = None):
 
 
 # Creates a new thread
+# extra_data => information that needs to be paired with the result, returned as a spread
 def spin_thread(func,args = [],result_queue = None):
 	print("starting new process")
 	result = func(*args)
@@ -108,6 +111,7 @@ if __name__ == "__main__":
 	files = ["C:\\Users\\KWAKU\\Desktop\\Platinum Dental\\Montage maker\\pictures\\"+x for x in files]
 	images = []
 	detection_model = detector()
+	# =========================================[START] Process Set One =================================================
 
 	#create different threads for each file scan
 	process_list = [] # list of threads for file detection processes
@@ -127,11 +131,13 @@ if __name__ == "__main__":
 	# cv2.destroyWindow("proc res")
 	for process in process_list:
 		process.join()
+	# =========================================[END] Process Set One =================================================
 
 	process_list = []
 	process_results = sorted(process_results, key=lambda x : x[1])
 
 
+	# =========================================[START] Process Set Two =================================================
 	process_queue = multiprocessing.Queue()
 	for proc_img,_ in process_results:
 		path = files[_]
@@ -149,11 +155,18 @@ if __name__ == "__main__":
 		#wait for files to be read
 	for process in process_list:
 		process.join()
+	process_two_results = process_results
+	# =========================================[END] Process Set Two =================================================
+	process_list = []
+	process_results = []
+
+	# =========================================[START] Process Set Three =================================================
+	process_queue = multiprocessing.Queue()
 
 	for path_index in range(len(files)):
 		path = files[path_index]
 		final_outline = None
-		for p,o,proc_img in process_results:
+		for p,o,proc_img in process_two_results:
 			if p == path:
 				final_outline = o
 				break
@@ -162,21 +175,24 @@ if __name__ == "__main__":
 
 
 		proc_img = proc_img[0:math.floor(proc_img.shape[0]*0.85),0:proc_img.shape[1]]
-		# temp = cv2.resize(proc_img,(500,500))
-		# cv2.imshow("results list", temp)
-		# cv2.waitKey(0)
-		smallest_x,smallest_y,largest_x,largest_y = get_bounds(final_outline)
+		process = multiprocessing.Process(target=spin_thread, args=(get_bounds,[final_outline,proc_img],process_queue))
+		process_list.append(process)
+		process.start()
+	while len(process_list) != len(process_results):
+		result = process_queue.get()
+		process_results.append(result)
 
+	for process in process_list:
+		process.join()
+	# =========================================[END] Process Set Three =================================================
+
+	for smallest_x,smallest_y,largest_x,largest_y, proc_img in process_results:
+		# smallest_x,smallest_y,largest_x,largest_y = get_bounds(final_outline)
 
 		left_pad = smallest_x
 		right_pad = final_outline.shape[1] - largest_x
 		top_excess = smallest_y
 		area = (largest_x - smallest_x) * (largest_y - smallest_y)
-
-
-		# temp = cv2.resize(proc_img,(500,500))
-		# cv2.imshow("proc before",temp)
-		# cv2.waitKey(0)
 
 
 		images.append((proc_img,area))
@@ -202,6 +218,7 @@ if __name__ == "__main__":
 
 
 
+	# ================================kk=========[START] Process Set  =================================================
 	#crop top padding
 	excess_list = []
 	for index in range(len(images)):
@@ -210,6 +227,8 @@ if __name__ == "__main__":
 		outline = get_outline(img)
 		small_x,small_y,large_x,large_y = get_bounds(outline)
 		excess_list.append((smallest_y, index, smallest_x, largest_y))
+
+	# ==========================kk===============[END] Process Set One =================================================
 	# sort excess_list according to smallest_y
 	excess_list = sorted(excess_list,key=lambda x: x[0])
 
