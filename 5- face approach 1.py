@@ -97,6 +97,20 @@ def get_detections(path, index = None):
 		return proc_img, index
 
 
+def top_crop(ob,start,index):
+	cropped = (ob[0][start:][:],ob[1])
+	return (cropped,index)
+
+
+def left_crop(ob,pad_val,index):
+	cropped = (ob[0][:][pad_val:],ob[1])
+	return (cropped,index)
+
+def right_crop(obj,pad_val,index):
+	# cropped = (ob[0][:][pad_val:],ob[1])
+	cropped = (obj[0][:][:-pad_val],obj[1])
+	return (cropped,index)
+
 # Creates a new thread
 # extra_data => information that needs to be paired with the result, returned as a spread
 def spin_thread(func,args = [],result_queue = None):
@@ -104,7 +118,6 @@ def spin_thread(func,args = [],result_queue = None):
 	result = func(*args)
 	if result_queue is not None:
 		result_queue.put(result)
-
 
 if __name__ == "__main__":
 	files = ["IMG_0500.JPG","IMG_0499.JPG","IMG_0501.JPG","IMG_0503.JPG","IMG_0504.JPG"]
@@ -174,7 +187,7 @@ if __name__ == "__main__":
 			raise Exception("Final outline not provided")
 
 
-		proc_img = proc_img[0:math.floor(proc_img.shape[0]*0.85),0:proc_img.shape[1]]
+		# proc_img = proc_img[0:math.floor(proc_img.shape[0]*0.85),0:proc_img.shape[1]]
 		process = multiprocessing.Process(target=spin_thread, args=(get_bounds,[final_outline,proc_img],process_queue))
 		process_list.append(process)
 		process.start()
@@ -225,7 +238,6 @@ if __name__ == "__main__":
 		current = images[index]
 		img = current[0]
 		outline = get_outline(img)
-		# small_x,small_y,large_x,large_y = get_bounds(outline)
 		process = multiprocessing.Process(target=spin_thread,args=(get_bounds,[outline,index],process_queue))
 		process_list.append(process)
 		process.start()
@@ -245,6 +257,12 @@ if __name__ == "__main__":
 	crop_val = excess_list[0][0]
 	pad_val = min(sorted(excess_list,key=lambda x:x[2])[0][2],   sorted(excess_list,key=lambda x:x[3])[0][3])
 
+
+	# =========================================[START] Process Set Five =================================================
+	process_list = []
+	process_results = []
+	process_queue = multiprocessing.Queue()
+
 	for element in excess_list:
 		element_padding = element[0]
 		im_index = element[1]
@@ -252,20 +270,78 @@ if __name__ == "__main__":
 			#crop top of main image
 			start = element_padding - crop_val
 
-			images[im_index] = (images[im_index][0][start:][:],images[im_index][1])
+			# images[im_index] = (images[im_index][0][start:][:],images[im_index][1])
+			# top_crop(images[im_index],im_index)
+			process = multiprocessing.Process(target=spin_thread,args=(top_crop,[images[im_index],start,im_index],process_queue))
+			process_list.append(process)
+			process.start()
+
+	while len(process_results) != len(process_list):
+		result = process_queue.get()
+		process_results.append(result)
+
+	for process in process_list:
+		process.join()
+
+	for img,index in process_results:
+		images[index] = img
+
+	# =========================================[END] Process Set Five =================================================
+	# =========================================[START] Process Set Six =================================================
+	process_list = []
+	process_results = []
+	process_queue = multiprocessing.Queue()
+	for element in excess_list:
 		element_padding = element[2]
+		im_index = element[1]
 		#left crop
 		if element_padding > pad_val:
-			images[im_index] = (images[im_index][0][:][pad_val:],images[im_index][1])
+			# images[im_index] = (images[im_index][0][:][pad_val:],images[im_index][1])
+			process = multiprocessing.Process(target=spin_thread,args=(left_crop,[images[im_index],pad_val,im_index],process_queue))
+			process_list.append(process)
+			process.start()
+
+	while len(process_results) != len(process_list):
+		result = process_queue.get()
+		process_results.append(result)
+
+	for process in process_list:
+		process.join()
+
+	for img,index in process_results:
+		images[index] = img
 			#crop by smallest horizontal
 
+	# =========================================[END] Process Set Six =================================================
+	# =========================================[START] Process Set Seven =================================================
+	process_list = []
+	process_results = []
+	process_queue = multiprocessing.Queue()
+
 		# right crop
+	for element in excess_list:
 		element_padding = element[3]
+		im_index = element[1]
 		if element_padding > pad_val:
-			images[im_index] = (images[im_index][0][:][:-pad_val],images[im_index][1])
+			# images[im_index] = (images[im_index][0][:][:-pad_val],images[im_index][1])
+			process = multiprocessing.Process(target=spin_thread,args=(right_crop,[images[im_index],pad_val,im_index],process_queue))
+			process_list.append(process)
+			process.start()
+
+	while len(process_results) != len(process_list):
+		result = process_queue.get()
+		process_results.append(result)
+
+	for process in process_list:
+		process.join()
+
+	for img,index in process_results:
+		images[index] = img
+
+
+	# =========================================[END] Process Set Seven =================================================
 
 	min_y = 0
-
 	# find the smallest width
 	for entry in images:
 		im = entry[0]
