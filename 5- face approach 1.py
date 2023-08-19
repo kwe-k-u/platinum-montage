@@ -55,10 +55,9 @@ def get_outline(entry_image, path = None):
 				break
 
 	final_outline = cv2.bitwise_or(outline,new_outline)
-	final_outline = cv2.resize(final_outline,(final_outline.shape[0],final_outline.shape[1]))
 	if path is None:
 		return final_outline
-	return (path,outline)
+	return (path,final_outline, entry_image)
 
 
 def get_bounds(entry_outline):
@@ -83,9 +82,22 @@ def get_bounds(entry_outline):
 
 	return (smallest_x, smallest_y, largest_x, largest_y)
 
+def get_detections(path, index = None):
+		try:
+			report = generate_report([path])[0]
+			detect = detection(report)
+			_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
+			proc_img = rotate(detect.image,angle)
+		except:
+			proc_img = cv2.imread(path)
+		if index is None:
+			return proc_img
+		return proc_img, index
 
 
+# Creates a new thread
 def spin_thread(func,args = [],result_queue = None):
+	print("starting new process")
 	result = func(*args)
 	if result_queue is not None:
 		result_queue.put(result)
@@ -98,53 +110,61 @@ if __name__ == "__main__":
 	detection_model = detector()
 
 	#create different threads for each file scan
-	file_process = [] # list of threads for file detection processes
-	first_queue = multiprocessing.Queue() #queue for first thread list
-	process_outlines = [] #list of results from first queue
+	process_list = [] # list of threads for file detection processes
+	process_queue = multiprocessing.Queue() #queue for first thread list
+	process_results = [] #list of results from first queue
 
-	for path in files:
-		try:
-			report = generate_report([path])[0]
-			detect = detection(report)
-			_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
-			proc_img = rotate(detect.image,angle)
-		except:
-			proc_img = cv2.imread(path)
-
-		process = multiprocessing.Process(target=spin_thread,args =(get_outline,[proc_img,path],first_queue))
-		file_process.append(process)
+	for file_index in range(len(files)):
+		path = files[file_index]
+		process = multiprocessing.Process(target=spin_thread, args = (get_detections,[path,file_index],process_queue))
+		process_list.append(process)
 		process.start()
 
-	while len(process_outlines) != len(file_process):
-		result = first_queue.get()
-		process_outlines.append(result)
+	while len(process_results) != len(process_list):
+		result = process_queue.get()
+		process_results.append(result)
+
+	# cv2.destroyWindow("proc res")
+	for process in process_list:
+		process.join()
+
+	process_list = []
+	process_results = sorted(process_results, key=lambda x : x[1])
+
+
+	process_queue = multiprocessing.Queue()
+	for proc_img,_ in process_results:
+		path = files[_]
+		process = multiprocessing.Process(target=spin_thread,args =(get_outline,[proc_img,path],process_queue))
+		process_list.append(process)
+		process.start()
+
+	process_results = []
+
+	while len(process_results) != len(process_list):
+		result = process_queue.get()
+		process_results.append(result)
 
 		# cv2.waitKey(0)
 		#wait for files to be read
-	for process in file_process:
+	for process in process_list:
 		process.join()
-
 
 	for path_index in range(len(files)):
 		path = files[path_index]
 		final_outline = None
-		for p,o in process_outlines:
+		for p,o,proc_img in process_results:
 			if p == path:
 				final_outline = o
 				break
 		if final_outline is None:
-			raise Exception("Final outline not provideed")
+			raise Exception("Final outline not provided")
 
-		# try:
-		# 	report = generate_report([path])[0]
-		# 	detect = detection(report)
-		# 	_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
-		# 	proc_img = rotate(detect.image,angle)
-		# except:
-		# 	proc_img = cv2.imread(path)
 
-		# final_outline = get_outline(proc_img) //===========================================
 		proc_img = proc_img[0:math.floor(proc_img.shape[0]*0.85),0:proc_img.shape[1]]
+		# temp = cv2.resize(proc_img,(500,500))
+		# cv2.imshow("results list", temp)
+		# cv2.waitKey(0)
 		smallest_x,smallest_y,largest_x,largest_y = get_bounds(final_outline)
 
 
@@ -154,11 +174,18 @@ if __name__ == "__main__":
 		area = (largest_x - smallest_x) * (largest_y - smallest_y)
 
 
+		# temp = cv2.resize(proc_img,(500,500))
+		# cv2.imshow("proc before",temp)
+		# cv2.waitKey(0)
+
+
 		images.append((proc_img,area))
 
 
 	# sort images by area
+
 	images = sorted(images,key=lambda x: x[1])
+
 	middle_area = images[len(images)//2][1]
 	# resize images to middle area
 	for index in range(len(images)):
