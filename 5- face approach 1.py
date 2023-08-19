@@ -187,13 +187,10 @@ if __name__ == "__main__":
 	# =========================================[END] Process Set Three =================================================
 
 	for smallest_x,smallest_y,largest_x,largest_y, proc_img in process_results:
-		# smallest_x,smallest_y,largest_x,largest_y = get_bounds(final_outline)
-
 		left_pad = smallest_x
 		right_pad = final_outline.shape[1] - largest_x
 		top_excess = smallest_y
 		area = (largest_x - smallest_x) * (largest_y - smallest_y)
-
 
 		images.append((proc_img,area))
 
@@ -218,17 +215,30 @@ if __name__ == "__main__":
 
 
 
-	# ================================kk=========[START] Process Set  =================================================
+	# =========================================[START] Process Set Four  =================================================
+	process_list = []
+	process_results = []
+	process_queue = multiprocessing.Queue()
 	#crop top padding
 	excess_list = []
 	for index in range(len(images)):
 		current = images[index]
 		img = current[0]
 		outline = get_outline(img)
-		small_x,small_y,large_x,large_y = get_bounds(outline)
-		excess_list.append((smallest_y, index, smallest_x, largest_y))
+		# small_x,small_y,large_x,large_y = get_bounds(outline)
+		process = multiprocessing.Process(target=spin_thread,args=(get_bounds,[outline,index],process_queue))
+		process_list.append(process)
+		process.start()
+	while len(process_list) != len(process_results):
+		result = process_queue.get()
+		process_results.append(result)
+	for process in process_list:
+		process.join()
 
-	# ==========================kk===============[END] Process Set One =================================================
+	for small_x,small_y,large_x,large_y,index in process_results:
+		excess_list.append((small_y, index, small_x, large_y))
+
+	# =========================================[END] Process Set Four =================================================
 	# sort excess_list according to smallest_y
 	excess_list = sorted(excess_list,key=lambda x: x[0])
 
@@ -254,18 +264,22 @@ if __name__ == "__main__":
 		if element_padding > pad_val:
 			images[im_index] = (images[im_index][0][:][:-pad_val],images[im_index][1])
 
-	min_x,min_y = 0,0
+	min_y = 0
 
 	# find the smallest width
 	for entry in images:
 		im = entry[0]
-		if min_y < entry[0].shape[1]:
-			min_x,min_y = entry[0].shape[:2]
+		if min_y < entry[0].shape[0]:
+			min_y = entry[0].shape[0]
 
 	for index in range(len(images)):
 		shape = images[index][0].shape
-		if min_x != shape[0] or min_y != shape[1]:
-			images[index] = (cv2.resize(images[index][0], (min_y,min_x)), images[index][1])
+		if min_y != shape[0]:
+			# nx/ny=x/y
+			# nx=x*ny
+			newx = int((shape[1]*shape[0])//shape[0])
+			# newx = (shape[1]*min_y)//shape[0]
+			images[index] = (cv2.resize(images[index][0], (newx,min_y)), images[index][1])
 
 	# concatenate images side by side
 	print("images length", len(images))
