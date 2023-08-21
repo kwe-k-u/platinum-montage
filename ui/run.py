@@ -179,7 +179,7 @@ class MontageMakerApp:
 		#rotates the image and centers the face in the frame
 		def process_image():
 			#don't proess images that failed the detection
-			if self.detection_list[index] is not None:
+			if type(self.detection_list[index]) == detection:
 
 				#rotate image to straighten face
 				selected = self.detection_list[index]
@@ -206,13 +206,13 @@ class MontageMakerApp:
 			self.detection_window(index)
 
 		def crop_16_9():
-			if self.detection_list[index] == None:
+			if type(self.detection_list[index]) != detection:
 				self.window_crop(self.selected_images[index])
 			else:
 				self.window_crop(self.detection_list[index])
 
 		def reset_image():
-			if self.detection_list[index] is not None:
+			if type(self.detection_list[index]) != detection:
 				report = generate_report([self.detection_list[index].file])
 				self.detection_list[index] = detection(report[0])
 			else:
@@ -258,7 +258,7 @@ class MontageMakerApp:
 					detect = detection(detection_row[0])
 					self.detection_list.append(detect)
 				except:
-					self.detection_list.append(None)
+					self.detection_list.append(cv2.imread(f))
 
 
 		# Create a grid of images in the first frame
@@ -269,8 +269,8 @@ class MontageMakerApp:
 			#PERFORMING DETECTIONS
 			# detector = detector()
 
-			if self.detection_list[i] == None:
-				img = cv2.imread(self.selected_images[i])
+			if type(self.detection_list[index]) != detection:
+				img = self.detection_list[index]
 			else:
 				img =  self.detection_list[i].get_marked_img()
 			# detector.gen_mesh(image_file)
@@ -307,7 +307,9 @@ class MontageMakerApp:
 		# Display the selected image in the middle frame
 		detect = self.detection_list[index]
 
-		if detect == None:
+		# if detect == None:
+		if type(detect) != detection:
+			# type(self.detection_list[index]) != detection
 			img = cv2.imread(self.selected_images[index])
 		elif (self.show_marks):
 			img = detect.get_marked_img()
@@ -324,7 +326,7 @@ class MontageMakerApp:
 		image_label.pack()
 
 		#Only show AI functionality if a face is detected
-		if detect != None:
+		if type(detect) == detection:
 			# Detection buttons in the third frame
 			face_button = tk.Button(third_frame, text="AI process", command=process_image)
 			face_button.pack(pady=5)
@@ -746,8 +748,9 @@ class MontageMakerApp:
 
 		print("showing montage")
 		montage = np.concatenate([x[0] for x in self.images],axis=1)
-		montage = resize_image(montage,1000)
-		cv2.imshow("temp_montage",montage)
+		# montage = resize_image(montage,1000)
+		cv2.imwrite("testmontage.jpg",montage)
+		# cv2.imshow("temp_montage",montage)
 		# cv2.imshow('test montage', montage)
 		cv2.waitKey(0)
 
@@ -761,7 +764,7 @@ class MontageMakerApp:
 
 
 
-		# self.create_montage_img()
+		self.create_montage_img()
 
 
 	# Window 5 - create and save montage image
@@ -783,8 +786,9 @@ class MontageMakerApp:
 			else:
 				images = []
 				for i in montage_order:
-					if self.detection_list[i] is None:
-						mon_image = cv2.imread(self.selected_images[i])
+					# if self.detection_list[i] is None:
+					if type(self.detection_list[i]) != detection:
+						mon_image = self.detection_list[i]
 					else:
 						mon_image = self.detection_list[i].image
 
@@ -816,13 +820,15 @@ class MontageMakerApp:
 			#save the detection list images in montage folder
 			for i in range(len(self.detection_list)):
 				#change name from img.ext to imgA.ext
-				if self.detection_list[i] is None:
+				# if self.detection_list[i] is None:
+				if type(self.detection_list[i]) != detection:
 					parts = self.selected_images[i].split(".")
 				else:
 					parts = self.detection_list[i].file.split(".")
 
 				new_name = ".".join(parts[:-1]) + "a." + parts[-1]
-				if self.detection_list[i] is None:
+				# if self.detection_list[i] is None:
+				if type(self.detection_list[i]) != detection:
 					sav_im = cv2.imread(self.selected_images[i])
 				else:
 					sav_im = self.detection_list[i].image
@@ -867,8 +873,10 @@ class MontageMakerApp:
 			checkbox = tk.Checkbutton(botom_frame, variable=tk.BooleanVar(),
 			     command=lambda idx=i: toggle_image_selection(idx)
 			     )
-			if detect is None:
-				image = cv2.imread(self.selected_images[i])
+			# if detect is None:
+			if type(detect) != detection:
+				image = detect
+				# image = cv2.imread(self.selected_images[i])
 			else:
 				image = detect.image
 
