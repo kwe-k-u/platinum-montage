@@ -4,8 +4,11 @@ from openpyxl import Workbook, open as open_excel
 from  detection_class import detection
 from detector import detector
 from time import time
-# import dlib
 import cv2
+import numpy as np
+import math
+from manipulate import rotate
+from stats_gen import find_eye_angle
 
 
 from PIL import Image, ImageTk
@@ -169,6 +172,117 @@ def create_tk_image(image):
     img_tk = ImageTk.PhotoImage(im)
     return img_tk
 
+
+
+
+
+def get_outline(entry_image, path = None):
+	# edge detection
+	edges = cv2.cvtColor(entry_image, cv2.COLOR_BGR2GRAY)
+	#blur image
+	edges = cv2.GaussianBlur(edges,(7,7),0)
+	#detect edges
+
+	edges = edges[0:math.floor(edges.shape[0]*0.85),0:edges.shape[1]]
+
+	edges = cv2.Canny(edges,50,50)
+	# black image size of edges
+	outline = np.zeros(edges.shape,dtype=np.uint8)
+	# front_array, back_array = [],[]
+
+	# keep only the fist and last horizontal detection
+	for row in range(1,edges.shape[0],3): #top to bottom
+		back,front = None,None
+		for col in range(1,edges.shape[1]//2): #left to right
+			if front is None:
+				pixel = edges[row][col]
+				if pixel != 0:
+					front = (row,col)
+			if back is None:
+				pixel = edges[row][-col]
+				if pixel != 0:
+					back = (row,-col)
+
+			if front is not None and back is not None:
+				outline[front[0]][front[1]] = 255
+				outline[back[0]][back[1]] = 255
+				break
+
+
+	new_outline = np.zeros(outline.shape,dtype=np.uint8)
+
+	for col in range(1,outline.shape[1]):
+		for row in range(1,outline.shape[0]):
+			pixel = edges[row][col]
+			if pixel != 0:
+				new_outline[row][col] = 255
+				# front_array.append((row,col))
+				break
+
+	final_outline = cv2.bitwise_or(outline,new_outline)
+	if path is None:
+		return final_outline
+	return (path,final_outline, entry_image)
+
+
+def get_bounds(entry_outline, proc_img = None):
+	x_array, y_array = [],[]
+
+	for r in range(entry_outline.shape[0]):
+		for c in range(entry_outline.shape[1]):
+			# smallest x
+			pixel = entry_outline[r][c]
+			if pixel > 0:
+				x_array.append(c)
+				y_array.append(r)
+
+
+	x_array.sort()
+	y_array.sort()
+	x_10_percent,y_10_percent = len(x_array) // 10, len(y_array) // 10
+	smallest_x = sum(x_array[:x_10_percent])//len(x_array[:x_10_percent])
+	smallest_y = sum(y_array[:y_10_percent])//len(y_array[:y_10_percent])
+	largest_y = sum(y_array[-y_10_percent:])//len(y_array[-y_10_percent:])
+	largest_x = sum(x_array[-x_10_percent:])//len(x_array[-x_10_percent:])
+	if proc_img is None:
+		return (smallest_x, smallest_y, largest_x, largest_y)
+
+	return (smallest_x, smallest_y, largest_x, largest_y, proc_img)
+
+def get_detections(path, index = None):
+		try:
+			report = generate_report([path])[0]
+			detect = detection(report)
+			_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
+			proc_img = rotate(detect.image,angle)
+		except:
+			proc_img = cv2.imread(path)
+		if index is None:
+			return proc_img
+		return proc_img, index
+
+
+def top_crop(ob,start,index):
+	cropped = (ob[0][start:][:],ob[1])
+	return (cropped,index)
+
+
+def left_crop(ob,pad_val,index):
+	cropped = (ob[0][:][pad_val:],ob[1])
+	return (cropped,index)
+
+def right_crop(obj,pad_val,index):
+	# cropped = (ob[0][:][pad_val:],ob[1])
+	cropped = (obj[0][:][:-pad_val],obj[1])
+	return (cropped,index)
+
+# Creates a new thread
+# extra_data => information that needs to be paired with the result, returned as a spread
+def spin_thread(func,args = [],result_queue = None):
+	print("starting new process")
+	result = func(*args)
+	if result_queue is not None:
+		result_queue.put(result)
 
 
 

@@ -11,11 +11,15 @@ from functions import *
 from stats_gen import *
 from manipulate import *
 from detection_class import detection
+import multiprocessing
+import numpy as np
 
 class MontageMakerApp:
 	def __init__(self):
+		self.images = []
 		self.select_folder_window(False)
 		self.detection_model = detector()
+
 
 	#window 1
 	def select_folder_window(self, existing = True):
@@ -473,6 +477,7 @@ class MontageMakerApp:
 
 	# skip to montage window
 	def skip_to_montage(self):
+		print("skip to montage start")
 		#show a loading page
 		# self.root.destroy()
 		# self.root = tk.Tk()
@@ -487,22 +492,276 @@ class MontageMakerApp:
 		# loading_icon.start()
 		# # self.root.mainloop()
 
-		for i in range(len(self.selected_images)):
-			try:
-				report = generate_report([self.selected_images[i]])[0]
-				detect = detection(report)
-				_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
-				# print(angle)
-				print(detect)
-				proc_img = rotate(detect.image,angle)
-				detect = self.detection_model.gen_mesh(detect)
-				detect.image = proc_img
-				self.detection_list.append(detect)
-			except:
-				print("error caught")
-				self.detection_list.append(None)
+	# =========================================[START] Process Set Two =================================================
+		process_list = []
+		process_queue = multiprocessing.Queue()
+		process_results = []
 
-		self.create_montage_img()
+		for file_index in range(len(self.selected_images)):
+			# try:
+			# 	report = generate_report([self.selected_images[i]])[0]
+			# 	detect = detection(report)
+			# 	_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
+			# 	# print(angle)
+			# 	print(detect)
+			# 	proc_img = rotate(detect.image,angle)
+			# 	detect = self.detection_model.gen_mesh(detect)
+			# 	detect.image = proc_img
+			# 	self.detection_list.append(detect)
+			# except:
+			# 	print("error caught")
+			# 	self.detection_list.append(None)
+
+
+			process = multiprocessing.Process(target= spin_thread, args = (get_detections,[self.selected_images[file_index],file_index], process_queue))
+			process_list.append(process)
+			process.start()
+
+		while len(process_results) != len(process_list):
+			result = process_queue.get()
+			process_results.append(result)
+
+		for process in process_list:
+			process.join()
+
+
+
+
+		# =========================================[END] Process Set Two =================================================
+		# =========================================[START] Process Set Two =================================================
+		process_list = []
+		process_results = sorted(process_results, key=lambda x : x[1])
+		process_queue = multiprocessing.Queue()
+		for proc_img, _ in process_results:
+			process = multiprocessing.Process(target=spin_thread,args=(get_outline,[proc_img,self.selected_images[_]], process_queue))
+			process_list.append(process)
+			process.start()
+
+		process_results = []
+
+		while len(process_results) != len(process_list):
+			result = process_queue.get()
+			process_results.append(result)
+
+		for process in process_list:
+			process.join()
+
+		process_results_two = process_results.copy()
+		# =========================================[END] Process Set Two =================================================
+
+		# =========================================[START] Process Set Two =================================================
+		process_queue = multiprocessing.Queue()
+		process_list = []
+		process_results = []
+
+		for file_index in range(len(self.selected_images)):
+			final_outline = None
+
+			for p,o,proc_img in process_results_two:
+				if p == self.selected_images[file_index]:
+					final_outline = o
+					break
+			if final_outline is None:
+				raise Exception("Final outline not provided")
+
+			process = multiprocessing.Process(target=spin_thread, args = (get_bounds,[final_outline,proc_img],process_queue))
+			process_list.append(process)
+			process.start()
+
+		while len(process_list) != len(process_results):
+			result = process_queue.get()
+			process_results.append(result)
+
+		for process in process_list:
+			process.join()
+
+		for smallest_x, smallest_y, largest_x,largest_y, proc_img in process_results:
+			# TODO remove
+			left_pad = smallest_x
+			right_pad = final_outline.shape[1] - largest_x
+			top_excess = smallest_y
+			area = (largest_x - smallest_x) * (largest_y - smallest_y)
+
+			self.images.append((proc_img,area))
+
+
+		self.images = sorted(self.images,key=lambda x: x[1])
+		middle_area = self.images[len(self.images)//2][1]
+
+		for index in range(len(self.images)):
+			current = self.images[index]
+			area = current[1]
+			ratio = middle_area/area
+			if ratio != 1:
+				new_area = area * ratio
+				new_height,new_width = current[0].shape[:2]
+				new_height *=ratio
+				new_width *=ratio
+				new_image = cv2.resize(current[0], (int(new_height),int(new_width)))
+				self.images[index] = (new_image,new_area)
+
+
+		# =========================================[START] Process Set Two =================================================
+		process_list = []
+		process_results = []
+		process_queue = multiprocessing.Queue()
+
+		excess_list = []
+		for index in range(len(self.images)):
+			print("process four ", index)
+			current = self.images[index]
+			img = current[0]
+			print("begin outline")
+			outline = get_outline(img) #multithread this TODO
+			print("end outline")
+
+			process = multiprocessing.Process(target=spin_thread, args = (get_bounds,[outline,index],process_queue))
+			process_list.append(process)
+			process.start()
+
+		while len(process_list) != len(process_results):
+			print("result append")
+			result = process_queue.get()
+			process_results.append(result)
+
+		for process in process_list:
+			print("process join")
+			process.join()
+
+		for small_x,small_y,large_x,large_y,index in process_results:
+			excess_list.append((small_y,index,small_x,large_y))
+
+
+		excess_list = sorted(excess_list,key=lambda x: x[0])
+
+		crop_val = excess_list[0][0]
+		pad_val = min(sorted(excess_list,key=lambda x:x[2])[0][2],   sorted(excess_list,key=lambda x:x[3])[0][3])
+
+		print('end of process four')
+
+
+		# =========================================[START] Process Set Five =================================================
+		process_list = []
+		process_results = []
+		process_queue = multiprocessing.Queue()
+
+		for element in excess_list:
+			print("process five", element[1])
+			element_padding = element[0]
+			im_index = element[1]
+			if crop_val < element_padding:
+				#crop top of main image
+				start = element_padding - crop_val
+
+				process = multiprocessing.Process(target=spin_thread,args=(top_crop,[self.images[im_index],start,im_index],process_queue))
+				process_list.append(process)
+				process.start()
+
+		while len(process_results) != len(process_list):
+			result = process_queue.get()
+			process_results.append(result)
+
+		for process in process_list:
+			process.join()
+		for img,index in process_results:
+			self.images[index] = img
+
+		print("end of process five")
+
+		# =========================================[END] Process Set Five =================================================
+		# =========================================[START] Process Set Six =================================================
+		process_list = []
+		process_results = []
+		process_queue = multiprocessing.Queue()
+		for element in excess_list:
+			element_padding = element[2]
+			im_index = element[1]
+			print("process sixe ", im_index)
+			#left crop
+			if element_padding > pad_val:
+				# images[im_index] = (images[im_index][0][:][pad_val:],images[im_index][1])
+				process = multiprocessing.Process(target=spin_thread,args=(left_crop,[self.images[im_index],pad_val,im_index],process_queue))
+				process_list.append(process)
+				process.start()
+
+		while len(process_results) != len(process_list):
+			result = process_queue.get()
+			process_results.append(result)
+
+		for process in process_list:
+			process.join()
+
+		for img,index in process_results:
+			self.images[index] = img
+
+
+		print('end of process six')
+
+		# =========================================[END] Process Set Six =================================================
+		# =========================================[START] Process Set Seven =================================================
+		process_list = []
+		process_results = []
+		process_queue = multiprocessing.Queue()
+
+			# right crop
+		for element in excess_list:
+			element_padding = element[3]
+			im_index = element[1]
+			if element_padding > pad_val:
+				# images[im_index] = (images[im_index][0][:][:-pad_val],images[im_index][1])
+				process = multiprocessing.Process(target=spin_thread,args=(right_crop,[self.images[im_index],pad_val,im_index],process_queue))
+				process_list.append(process)
+				process.start()
+
+		while len(process_results) != len(process_list):
+			result = process_queue.get()
+			process_results.append(result)
+
+		for process in process_list:
+			process.join()
+
+		for img,index in process_results:
+			self.images[index] = img
+
+
+		# =========================================[END] Process Set Seven =================================================
+
+		min_y = 0
+		# find the smallest width
+		for entry in self.images:
+			im = entry[0]
+			if min_y < entry[0].shape[0]:
+				min_y = entry[0].shape[0]
+
+		for index in range(len(self.images)):
+			shape = self.images[index][0].shape
+			if min_y != shape[0]:
+				# nx/ny=x/y
+				# nx=x*ny
+				newx = int((shape[1]*shape[0])//shape[0])
+				# newx = (shape[1]*min_y)//shape[0]
+				self.images[index] = (cv2.resize(self.images[index][0], (newx,min_y)), self.images[index][1])
+
+		# concatenate images s
+
+		print("showing montage")
+		montage = np.concatenate([x[0] for x in self.images],axis=1)
+		montage = resize_image(montage,1000)
+		cv2.imshow("temp_montage",montage)
+		# cv2.imshow('test montage', montage)
+		cv2.waitKey(0)
+
+
+
+
+
+
+
+
+
+
+
+		# self.create_montage_img()
 
 
 	# Window 5 - create and save montage image
