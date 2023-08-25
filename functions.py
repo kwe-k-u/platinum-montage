@@ -155,14 +155,22 @@ def read_excel(filename, edited = False) -> list:
     # print("comapris", data[0].left_eye_detection == data[2].left_eye_detection)
     return data
 
-def resize_image(image,seed_width = 100):
+def resize_image(image,nh = 100):
     if type(image) == type(""):
         img = cv2.imread(image)
     else:
         img = image
-    nh = int(img.shape[1]*(seed_width/img.shape[0]))
-    img = cv2.resize(img, (nh, seed_width))
-    return img
+    nw = int((nh*img.shape[1])/img.shape[0])
+    result = cv2.resize(img,(nw,nh))
+    return result
+# def resize_image(image,seed_width = 100):
+#     if type(image) == type(""):
+#         img = cv2.imread(image)
+#     else:
+#         img = image
+#     nh = int(img.shape[1]*(seed_width/img.shape[0]))
+#     img = cv2.resize(img, (nh, seed_width))
+#     return img
 
 
 #creates a tk image object for the ui

@@ -597,9 +597,10 @@ class MontageMakerApp:
 			if ratio != 1:
 				new_area = area * ratio
 				new_height,new_width = current[0].shape[:2]
-				new_height *=ratio
-				new_width *=ratio
-				new_image = cv2.resize(current[0], (int(new_height),int(new_width)))
+				new_height = int(new_height * ratio)
+				# new_width *=ratio
+				# new_image = cv2.resize(current[0], (int(new_height),int(new_width)))
+				new_image = resize_image(current[0],new_height)
 				self.images[index] = (new_image,new_area)
 
 
@@ -728,11 +729,11 @@ class MontageMakerApp:
 
 		# =========================================[END] Process Set Seven =================================================
 
-		min_y = 0
+		min_y = math.inf
 		# find the smallest width
 		for entry in self.images:
 			im = entry[0]
-			if min_y < entry[0].shape[0]:
+			if min_y > entry[0].shape[0]:
 				min_y = entry[0].shape[0]
 
 		for index in range(len(self.images)):
@@ -740,11 +741,16 @@ class MontageMakerApp:
 			if min_y != shape[0]:
 				# nx/ny=x/y
 				# nx=x*ny
-				newx = int((shape[1]*shape[0])//shape[0])
+				# newx = int((shape[1]*shape[0])//shape[0])
+				# newx = int(min_y*(shape[1]/shape[0]))
 				# newx = (shape[1]*min_y)//shape[0]
-				self.images[index] = (cv2.resize(self.images[index][0], (newx,min_y)), self.images[index][1])
+				yd = shape[0] - min_y
+				self.images[index] = (self.images[index][0][:-yd][:], self.images[index][1])
+				# self.images[index] = (cv2.resize(self.images[index][0], (shape[1],min_y)), self.images[index][1])
 
 		# concatenate images s
+		for im in self.images:
+			print(im[0].shape[:2])
 
 		print("showing montage")
 		montage = np.concatenate([x[0] for x in self.images],axis=1)

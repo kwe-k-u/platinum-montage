@@ -169,7 +169,6 @@ def rotate(image, angle):
     else:
         print('left crop')
         rotated_mat = left_crop(rotated_mat)
-    resized = cv2.resize(rotated_mat,(500,500))
     return rotated_mat
 
 
