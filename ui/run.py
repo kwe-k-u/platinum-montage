@@ -607,6 +607,7 @@ class MontageMakerApp:
 		# =========================================[START] Process Set Two =================================================
 		process_list = []
 		process_results = []
+		outlines = []
 		process_queue = multiprocessing.Queue()
 
 		excess_list = []
@@ -615,9 +616,25 @@ class MontageMakerApp:
 			current = self.images[index]
 			img = current[0]
 			print("begin outline")
-			outline = get_outline(img) #multithread this TODO
+			# outline = get_outline(img) #multithread this TODO
+			process = multiprocessing.Process(target=spin_thread,args=(get_outline,[img,index],process_queue))
+			process_list.append(process)
+			process.start()
+		while len(outlines) != len(process_list):
+			result = process_queue.get()
+			outlines.append(result)
+		for process in process_list:
+			process.join()
 			print("end outline")
 
+		# =========================================[END] Process Set Two =================================================
+		# =========================================[START] Process Set Two =================================================
+
+		process_list = []
+		process_results = []
+		process_queue = multiprocessing.Queue()
+
+		for index,outline,_ in outlines:
 			process = multiprocessing.Process(target=spin_thread, args = (get_bounds,[outline,index],process_queue))
 			process_list.append(process)
 			process.start()
