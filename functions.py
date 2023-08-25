@@ -199,6 +199,7 @@ def get_outline(entry_image, path = None):
 	# front_array, back_array = [],[]
 
 	# keep only the fist and last horizontal detection
+    #TODO paralise 1
 	for row in range(1,edges.shape[0],3): #top to bottom
 		back,front = None,None
 		for col in range(1,edges.shape[1]//2): #left to right
@@ -219,6 +220,7 @@ def get_outline(entry_image, path = None):
 
 	new_outline = np.zeros(outline.shape,dtype=np.uint8)
 
+    #TODO parallelise 2
 	for col in range(1,outline.shape[1]):
 		for row in range(1,outline.shape[0]):
 			pixel = edges[row][col]
@@ -236,6 +238,7 @@ def get_outline(entry_image, path = None):
 def get_bounds(entry_outline, proc_img = None):
 	x_array, y_array = [],[]
 
+    #paralelise 3
 	for r in range(entry_outline.shape[0]):
 		for c in range(entry_outline.shape[1]):
 			# smallest x

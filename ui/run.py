@@ -16,7 +16,7 @@ import numpy as np
 
 class MontageMakerApp:
 	def __init__(self):
-		self.images = []
+		self.detections = []
 		self.select_folder_window(False)
 		self.detection_model = detector()
 
@@ -119,8 +119,6 @@ class MontageMakerApp:
 			img = cv2.imread(image_file)
 			# Convert the image from BGR to RGB
 			img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-			# Resize the image to a smaller size (optional)
-			# img = cv2.resize(img, (200, 200))
 			img = resize_image(img,200)
 
 			# Convert the image to Tkinter-compatible format
@@ -500,21 +498,6 @@ class MontageMakerApp:
 		process_results = []
 
 		for file_index in range(len(self.selected_images)):
-			# try:
-			# 	report = generate_report([self.selected_images[i]])[0]
-			# 	detect = detection(report)
-			# 	_,_,angle = find_eye_angle(detect.left_eye_detection,detect.right_eye_detection)
-			# 	# print(angle)
-			# 	print(detect)
-			# 	proc_img = rotate(detect.image,angle)
-			# 	detect = self.detection_model.gen_mesh(detect)
-			# 	detect.image = proc_img
-			# 	self.detection_list.append(detect)
-			# except:
-			# 	print("error caught")
-			# 	self.detection_list.append(None)
-
-
 			process = multiprocessing.Process(target= spin_thread, args = (get_detections,[self.selected_images[file_index],file_index], process_queue))
 			process_list.append(process)
 			process.start()
@@ -578,30 +561,23 @@ class MontageMakerApp:
 			process.join()
 
 		for smallest_x, smallest_y, largest_x,largest_y, proc_img in process_results:
-			# TODO remove
-			left_pad = smallest_x
-			right_pad = final_outline.shape[1] - largest_x
-			top_excess = smallest_y
 			area = (largest_x - smallest_x) * (largest_y - smallest_y)
+			self.detections.append((proc_img,area))
 
-			self.images.append((proc_img,area))
 
+		self.detections = sorted(self.detections,key=lambda x: x[1])
+		middle_area = self.detections[len(self.detections)//2][1]
 
-		self.images = sorted(self.images,key=lambda x: x[1])
-		middle_area = self.images[len(self.images)//2][1]
-
-		for index in range(len(self.images)):
-			current = self.images[index]
+		for index in range(len(self.detections)):
+			current = self.detections[index]
 			area = current[1]
 			ratio = middle_area/area
 			if ratio != 1:
 				new_area = area * ratio
 				new_height,new_width = current[0].shape[:2]
 				new_height = int(new_height * ratio)
-				# new_width *=ratio
-				# new_image = cv2.resize(current[0], (int(new_height),int(new_width)))
 				new_image = resize_image(current[0],new_height)
-				self.images[index] = (new_image,new_area)
+				self.detections[index] = (new_image,new_area)
 
 
 		# =========================================[START] Process Set Two =================================================
@@ -611,12 +587,11 @@ class MontageMakerApp:
 		process_queue = multiprocessing.Queue()
 
 		excess_list = []
-		for index in range(len(self.images)):
+		for index in range(len(self.detections)):
 			print("process four ", index)
-			current = self.images[index]
+			current = self.detections[index]
 			img = current[0]
 			print("begin outline")
-			# outline = get_outline(img) #multithread this TODO
 			process = multiprocessing.Process(target=spin_thread,args=(get_outline,[img,index],process_queue))
 			process_list.append(process)
 			process.start()
@@ -648,7 +623,7 @@ class MontageMakerApp:
 			print("process join")
 			process.join()
 
-		for small_x,small_y,large_x,large_y,index in process_results:
+		for small_x,small_y,_,large_y,index in process_results:
 			excess_list.append((small_y,index,small_x,large_y))
 
 
@@ -673,7 +648,7 @@ class MontageMakerApp:
 				#crop top of main image
 				start = element_padding - crop_val
 
-				process = multiprocessing.Process(target=spin_thread,args=(top_crop,[self.images[im_index],start,im_index],process_queue))
+				process = multiprocessing.Process(target=spin_thread,args=(top_crop,[self.detections[im_index],start,im_index],process_queue))
 				process_list.append(process)
 				process.start()
 
@@ -684,7 +659,7 @@ class MontageMakerApp:
 		for process in process_list:
 			process.join()
 		for img,index in process_results:
-			self.images[index] = img
+			self.detections[index] = img
 
 		print("end of process five")
 
@@ -700,7 +675,7 @@ class MontageMakerApp:
 			#left crop
 			if element_padding > pad_val:
 				# images[im_index] = (images[im_index][0][:][pad_val:],images[im_index][1])
-				process = multiprocessing.Process(target=spin_thread,args=(left_crop,[self.images[im_index],pad_val,im_index],process_queue))
+				process = multiprocessing.Process(target=spin_thread,args=(left_crop,[self.detections[im_index],pad_val,im_index],process_queue))
 				process_list.append(process)
 				process.start()
 
@@ -712,7 +687,7 @@ class MontageMakerApp:
 			process.join()
 
 		for img,index in process_results:
-			self.images[index] = img
+			self.detections[index] = img
 
 
 		print('end of process six')
@@ -728,8 +703,8 @@ class MontageMakerApp:
 			element_padding = element[3]
 			im_index = element[1]
 			if element_padding > pad_val:
-				# images[im_index] = (images[im_index][0][:][:-pad_val],images[im_index][1])
-				process = multiprocessing.Process(target=spin_thread,args=(right_crop,[self.images[im_index],pad_val,im_index],process_queue))
+
+				process = multiprocessing.Process(target=spin_thread,args=(right_crop,[self.detections[im_index],pad_val,im_index],process_queue))
 				process_list.append(process)
 				process.start()
 
@@ -741,47 +716,25 @@ class MontageMakerApp:
 			process.join()
 
 		for img,index in process_results:
-			self.images[index] = img
+			self.detections[index] = img
 
 
 		# =========================================[END] Process Set Seven =================================================
 
 		min_y = math.inf
 		# find the smallest width
-		for entry in self.images:
-			im = entry[0]
+		for entry in self.detections:
 			if min_y > entry[0].shape[0]:
 				min_y = entry[0].shape[0]
 
-		for index in range(len(self.images)):
-			shape = self.images[index][0].shape
+		for index in range(len(self.detections)):
+			shape = self.detections[index][0].shape
 			if min_y != shape[0]:
-				# nx/ny=x/y
-				# nx=x*ny
-				# newx = int((shape[1]*shape[0])//shape[0])
-				# newx = int(min_y*(shape[1]/shape[0]))
-				# newx = (shape[1]*min_y)//shape[0]
 				yd = shape[0] - min_y
-				self.images[index] = (self.images[index][0][:-yd][:], self.images[index][1])
-				# self.images[index] = (cv2.resize(self.images[index][0], (shape[1],min_y)), self.images[index][1])
 
-		# concatenate images s
-		for im in self.images:
-			print(im[0].shape[:2])
-
-		print("showing montage")
-		montage = np.concatenate([x[0] for x in self.images],axis=1)
-		# montage = resize_image(montage,1000)
-		cv2.imwrite("testmontage.jpg",montage)
-		# cv2.imshow("temp_montage",montage)
-		# cv2.imshow('test montage', montage)
-		cv2.waitKey(0)
-
-
-
-
-
-
+				final_image = self.detections[index][0][:-yd][:]
+				self.detections[index] = (final_image, self.detections[index][1])
+				self.detection_list.append(final_image)
 
 
 
@@ -798,8 +751,7 @@ class MontageMakerApp:
 			#if montage_order is empty show a black image
 			if len(montage_order) == 0:
 				self.montage = np.zeros((400, 400, 3), np.uint8)
-				# img = Image.fromarray(self.montage)
-				# img_tk = ImageTk.PhotoImage(img)
+
 				img_tk = create_tk_image(self.montage)
 				self.montage_image_label.config(image=img_tk)
 				self.montage_image_label.image = img_tk
@@ -816,7 +768,6 @@ class MontageMakerApp:
 						mon_image = self.detection_list[i].image
 
 					mon_image = cv2.cvtColor(mon_image, cv2.COLOR_BGR2RGB)
-					# mon_image = cv2.resize(mon_image, (250, 250))
 					mon_image = resize_image(mon_image,250)
 					images.append(mon_image)
 
@@ -824,8 +775,6 @@ class MontageMakerApp:
 				#concatenate images
 				self.montage = np.concatenate(images, axis=1)
 
-				# montage = Image.fromarray(self.montage)
-				# montage_tk = ImageTk.PhotoImage(montage)
 				montage_tk = create_tk_image(self.montage)
 				self.montage_image_label.config(image=montage_tk)
 				self.montage_image_label.image = montage_tk
@@ -884,8 +833,7 @@ class MontageMakerApp:
 
 		self.montage_image_label = tk.Label(top_frame)
 		img = np.zeros((250, 250, 3), np.uint8)
-		# img = Image.fromarray(img)
-		# img_tk = ImageTk.PhotoImage(img)
+
 		img_tk = create_tk_image(img)
 		self.montage_image_label.config(image=img_tk)
 		self.montage_image_label.image = img_tk
@@ -905,8 +853,7 @@ class MontageMakerApp:
 
 			image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 			image = resize_image(image,300)
-			# image = cv2.resize(image, (100, 100))
-			# img_tk = ImageTk.PhotoImage(Image.fromarray(image))
+
 			img_tk = create_tk_image(image)
 			checkbox.img = img_tk
 			checkbox.config(image = img_tk)
