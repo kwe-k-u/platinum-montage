@@ -1,0 +1,5 @@
+manipulate.py
+stats_gen.py
+functions.py
+detector.py
+detection_class.py
